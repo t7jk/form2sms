@@ -854,10 +854,21 @@ class Form2SMS_Settings {
 			return [];
 		}
 
+		// WPForms: bez `content_only` metoda get() zwraca WP_Post, nie tablicę z `fields`
+		// (por. WPForms_Form_Handler::get_single()).
 		$form_data = null;
 		if ( function_exists( 'wpforms' ) && is_object( wpforms() ) && isset( wpforms()->form ) && is_object( wpforms()->form ) ) {
-			// WPForms: form->get() zwraca tablicę danych formularza (z polami).
-			$form_data = wpforms()->form->get( $form_id );
+			$form_data = wpforms()->form->get( $form_id, [ 'content_only' => true ] );
+		}
+
+		if ( ( empty( $form_data ) || ! is_array( $form_data ) ) && current_user_can( 'manage_options' ) ) {
+			$post = get_post( $form_id );
+			if ( $post instanceof WP_Post && in_array( $post->post_type, [ 'wpforms', 'wpforms-template' ], true ) && function_exists( 'wpforms_decode' ) && is_string( $post->post_content ) && $post->post_content !== '' ) {
+				$decoded = wpforms_decode( $post->post_content );
+				if ( is_array( $decoded ) ) {
+					$form_data = $decoded;
+				}
+			}
 		}
 
 		if ( empty( $form_data ) || ! is_array( $form_data ) ) {
@@ -874,25 +885,67 @@ class Form2SMS_Settings {
 			if ( ! is_array( $field ) ) {
 				continue;
 			}
-			$label = $field['label'] ?? '';
-			if ( ! is_string( $label ) || '' === trim( $label ) ) {
-				continue;
-			}
-			$slug = strtolower( trim( $label ) );
-			$slug = preg_replace( '/\s+/', '-', $slug );
-			$slug = preg_replace( '/[^a-z0-9\-]/', '', $slug );
-			$slug = preg_replace( '/\-+/', '-', $slug );
-			$slug = trim( (string) $slug, '-' );
 
+			$raw_label = '';
+			if ( ! empty( $field['label'] ) && is_string( $field['label'] ) ) {
+				$raw_label = $field['label'];
+			} elseif ( ! empty( $field['name'] ) && is_string( $field['name'] ) ) {
+				$raw_label = $field['name'];
+			}
+
+			$slug = $this->normalize_wpforms_label_for_tag( $raw_label );
 			if ( '' === $slug ) {
 				continue;
 			}
+
 			$tags[] = '[' . $slug . ']';
 		}
 
 		$tags = array_values( array_unique( $tags ) );
 		sort( $tags, SORT_NATURAL | SORT_FLAG_CASE );
 		return $tags;
+	}
+
+	/**
+	 * Ta sama logika co Form2SMS_WPForms_Handler::normalize_tag_key (spójne tagi w UI i przy wysyłce).
+	 *
+	 * @param string $raw Etykieta lub nazwa pola z definicji formularza.
+	 */
+	private function normalize_wpforms_label_for_tag( string $raw ): string {
+		$raw = trim( $raw );
+		if ( '' === $raw ) {
+			return '';
+		}
+
+		$raw = $this->replace_wpforms_label_diacritics( $raw );
+		$raw = strtolower( $raw );
+		$raw = preg_replace( '/[^a-z0-9_-]+/i', '-', (string) $raw );
+		if ( is_string( $raw ) ) {
+			$raw = trim( $raw, '-' );
+		}
+
+		if ( ! preg_match( '/^[a-z][a-z0-9_-]*$/', (string) $raw ) ) {
+			return '';
+		}
+
+		return (string) $raw;
+	}
+
+	/**
+	 * @param string $text
+	 */
+	private function replace_wpforms_label_diacritics( string $text ): string {
+		$search = [
+			'ą', 'ć', 'ę', 'ł', 'ń', 'ó', 'ś', 'ź', 'ż',
+			'Ą', 'Ć', 'Ę', 'Ł', 'Ń', 'Ó', 'Ś', 'Ź', 'Ż',
+		];
+
+		$replace = [
+			'a', 'c', 'e', 'l', 'n', 'o', 's', 'z', 'z',
+			'A', 'C', 'E', 'L', 'N', 'O', 'S', 'Z', 'Z',
+		];
+
+		return str_replace( $search, $replace, $text );
 	}
 
 	/**
