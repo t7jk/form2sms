@@ -65,9 +65,10 @@ class KnownBugsTest extends AppTestCase {
 		$this->setPreHttpResponse( 200, [] );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Kurs PHP',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Kurs PHP',
 		] );
 
 		$this->assertTrue( $ok );
@@ -97,9 +98,10 @@ class KnownBugsTest extends AppTestCase {
 		$this->setPreHttpResponse( 200, [] );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Żółć',
-			'phone'  => '500600700',
-			'course' => 'Wstęp do Żarć',
+			'your-name' => 'Jan Żółć',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Wstęp do Żarć',
 		] );
 
 		$this->assertTrue( $ok );
@@ -135,9 +137,10 @@ class KnownBugsTest extends AppTestCase {
 		] );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Kurs PHP',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Kurs PHP',
 		] );
 
 		$this->assertFalse( $ok );

@@ -21,10 +21,10 @@ class Form2SMS_SMS_Sender {
 	/**
 	 * Wysyła SMS z danymi zgłoszenia.
 	 *
-	 * @param array $data Tablica z kluczami: name, phone, course.
+	 * @param array<string,string> $postedValues Dane CF7 po stronie servera (mapa: tag => wartość).
 	 * @return bool True jeśli SMS wysłany poprawnie, false w przeciwnym razie.
 	 */
-	public function send( array $data ): bool {
+	public function send( array $postedValues ): bool {
 		$settings = Form2SMS_Settings::get_settings();
 
 		// Sprawdź czy wysyłanie jest włączone.
@@ -48,8 +48,8 @@ class Form2SMS_SMS_Sender {
 			return false;
 		}
 
-		// Zbuduj treść SMS.
-		$message = $this->build_message( $data );
+		// Zbuduj treść SMS na podstawie szablonu z ustawień.
+		$message = $this->build_message( $postedValues );
 
 		// Wyślij przez API.
 		$success = $this->call_api( $settings['api_token'], $settings['admin_phone'], $message );
@@ -73,19 +73,42 @@ class Form2SMS_SMS_Sender {
 	 * @param array $data Tablica z kluczami: name, phone, course.
 	 * @return string Gotowa treść SMS.
 	 */
-	private function build_message( array $data ): string {
-		$name   = sanitize_text_field( $data['name']   ?? '' );
-		$phone  = sanitize_text_field( $data['phone']  ?? '' );
-		$course = sanitize_text_field( $data['course'] ?? '' );
+	private function build_message( array $postedValues ): string {
+		$settings = Form2SMS_Settings::get_settings();
+		$template = (string) ( $settings['sms_template'] ?? 'Wiadomosc od [your-name] telefon [gsm] email [email] Tresc [message]' );
 
-		// Szablon SMS: "Jan Kowalski, numer 500600700, zapis na: Wstep do programowania"
-		$message = sprintf( '%s, numer %s, zapis na: %s', $name, $phone, $course );
+		$message = $this->replace_template_tags( $template, $postedValues );
 
 		// Usuń polskie znaki diakrytyczne (SMS GSM7 nie obsługuje UTF-8 wydajnie).
 		$message = $this->replace_diacritics( $message );
 
 		// Skróć do maksymalnej długości SMS.
 		return substr( $message, 0, self::MAX_LENGTH );
+	}
+
+	/**
+	 * Zamienia tagi w formie `[tag]` na wartości z danych CF7.
+	 *
+	 * @param string              $template Szablon SMS.
+	 * @param array<string,string> $postedValues Dane CF7 (tag => value).
+	 * @return string Gotowy SMS.
+	 */
+	private function replace_template_tags( string $template, array $postedValues ): string {
+		// Ujednolicamy klucze do lower-case dla odporności na casing.
+		$values = [];
+		foreach ( $postedValues as $k => $v ) {
+			$key = strtolower( (string) $k );
+			$values[ $key ] = sanitize_text_field( (string) $v );
+		}
+
+		return (string) preg_replace_callback(
+			'/\[([a-zA-Z][a-zA-Z0-9_-]*)\]/',
+			function ( array $m ) use ( $values ) : string {
+				$tag = strtolower( (string) $m[1] );
+				return $values[ $tag ] ?? '';
+			},
+			$template
+		);
 	}
 
 	/**

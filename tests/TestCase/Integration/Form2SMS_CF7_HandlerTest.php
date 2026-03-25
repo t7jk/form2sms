@@ -61,15 +61,13 @@ class Form2SMS_CF7_HandlerTest extends AppTestCase {
 
 		$this->setPluginSettings( [
 			'form_id'        => $formId,
-			'field_name'     => 'your-name',
-			'field_phone'    => 'your-phone',
-			'field_course'   => 'your-subject',
 		] );
 
 		$posted = [
 			'your-name'    => 'Jan Kowalski',
-			'your-phone'   => '500600700',
-			'your-subject' => 'Kurs PHP',
+			'gsm'           => '500600700',
+			'email'         => 'test@example.com',
+			'message'       => 'Kurs PHP',
 		];
 
 		\WPCF7_Submission::setInstance( new \WPCF7_Submission( $posted ) );
@@ -77,11 +75,7 @@ class Form2SMS_CF7_HandlerTest extends AppTestCase {
 		$sender = $this->createMock( \Form2SMS_SMS_Sender::class );
 		$sender->expects( $this->once() )
 			->method( 'send' )
-			->with( [
-				'name'   => 'Jan Kowalski',
-				'phone'  => '500600700',
-				'course' => 'Kurs PHP',
-			] )
+			->with( $posted )
 			->willReturn( true );
 
 		$handler = new \Form2SMS_CF7_Handler( $sender );
@@ -95,9 +89,10 @@ class Form2SMS_CF7_HandlerTest extends AppTestCase {
 		] );
 
 		\WPCF7_Submission::setInstance( new \WPCF7_Submission( [
-			'your-name'    => 'Jan',
-			'your-phone'   => '500600700',
-			'your-subject' => 'Kurs',
+			'your-name' => 'Jan',
+			'gsm'       => '500600700',
+			'email'     => 'a@b.pl',
+			'message'   => 'Kurs',
 		] ) );
 
 		$sender = $this->createMock( \Form2SMS_SMS_Sender::class );
@@ -111,10 +106,7 @@ class Form2SMS_CF7_HandlerTest extends AppTestCase {
 	public function testHandleSubmissionDoesNothingWhenSubmissionIsNull(): void {
 		$formId = 10;
 		$this->setPluginSettings( [
-			'form_id'      => $formId,
-			'field_name'    => 'your-name',
-			'field_phone'   => 'your-phone',
-			'field_course'  => 'your-subject',
+			'form_id' => $formId,
 		] );
 
 		\WPCF7_Submission::setInstance( null );

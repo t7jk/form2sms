@@ -58,14 +58,7 @@ class Form2SMS_CF7_Handler {
 
 		$posted = $submission->get_posted_data();
 
-		// Zmapuj pola formularza na dane SMS używając skonfigurowanych tagów.
-		$data = [
-			'name'   => $posted[ $settings['field_name'] ]   ?? '',
-			'phone'  => $posted[ $settings['field_phone'] ]  ?? '',
-			'course' => $posted[ $settings['field_course'] ] ?? '',
-		];
-
-		// Wyślij SMS.
-		$this->sender->send( $data );
+		// Przekaż wszystkie tagi CF7 do sendera — to sender wykona podmianę [tag] w szablonie.
+		$this->sender->send( (array) $posted );
 	}
 }

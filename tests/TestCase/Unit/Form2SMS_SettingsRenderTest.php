@@ -27,20 +27,20 @@ class Form2SMS_SettingsRenderTest extends AppTestCase {
 
 	public function testFieldTextRendersInputWithValue(): void {
 		$this->setPluginSettings( [
-			'field_name' => 'my-custom-name',
+			'sms_template' => 'my-custom-template',
 		] );
 
 		$settingsObj = new \Form2SMS_Settings();
 
 		ob_start();
 		$settingsObj->field_text( [
-			'key'         => 'field_name',
+			'key'         => 'sms_template',
 			'description' => 'desc',
 		] );
 		$out = (string) ob_get_clean();
 
-		$this->assertStringContainsString( 'name="form2sms_settings[field_name]"', $out );
-		$this->assertStringContainsString( 'value="my-custom-name"', $out );
+		$this->assertStringContainsString( 'name="form2sms_settings[sms_template]"', $out );
+		$this->assertStringContainsString( 'value="my-custom-template"', $out );
 	}
 
 	public function testFieldCheckboxRendersCheckedWhenEnabled(): void {

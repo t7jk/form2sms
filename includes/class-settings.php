@@ -109,30 +109,16 @@ class Form2SMS_Settings {
 		);
 
 		add_settings_field(
-			'field_name',
-			__( 'Tag pola: Imię i Nazwisko', 'form2sms' ),
+			'sms_template',
+			__( 'Szablon treści SMS', 'form2sms' ),
 			[ $this, 'field_text' ],
 			'form2sms',
 			'form2sms_cf7',
-			[ 'key' => 'field_name', 'description' => __( 'Nazwa tagu CF7, np. your-name', 'form2sms' ) ]
-		);
-
-		add_settings_field(
-			'field_phone',
-			__( 'Tag pola: Telefon', 'form2sms' ),
-			[ $this, 'field_text' ],
-			'form2sms',
-			'form2sms_cf7',
-			[ 'key' => 'field_phone', 'description' => __( 'Nazwa tagu CF7, np. your-phone', 'form2sms' ) ]
-		);
-
-		add_settings_field(
-			'field_course',
-			__( 'Tag pola: Kurs', 'form2sms' ),
-			[ $this, 'field_text' ],
-			'form2sms',
-			'form2sms_cf7',
-			[ 'key' => 'field_course', 'description' => __( 'Nazwa tagu CF7, np. your-subject', 'form2sms' ) ]
+			[
+				'key'         => 'sms_template',
+				'maxlength'  => 159,
+				'description' => __( 'Wstawiaj tagi CF7 w nawiasach `[]`, np. [your-name] albo [message]. Maks. 159 znaków.', 'form2sms' )
+			]
 		);
 
 		// --- Sekcja: SMSAPI ---
@@ -196,6 +182,11 @@ class Form2SMS_Settings {
 	public function field_form_select(): void {
 		$settings = self::get_settings();
 		$forms    = $this->get_cf7_forms();
+		$tags_by_form_id = [];
+		foreach ( $forms as $id => $title ) {
+			$tags_by_form_id[ (int) $id ] = $this->get_cf7_form_tags( (int) $id );
+		}
+		$tags_by_form_id_json = wp_json_encode( $tags_by_form_id );
 		?>
 		<select name="form2sms_settings[form_id]">
 			<option value="0"><?php esc_html_e( '— wybierz formularz —', 'form2sms' ); ?></option>
@@ -209,6 +200,62 @@ class Form2SMS_Settings {
 		<?php if ( empty( $forms ) ) : ?>
 			<p class="description"><?php esc_html_e( 'Brak formularzy CF7. Utwórz formularz w Contact Form 7.', 'form2sms' ); ?></p>
 		<?php endif; ?>
+
+		<fieldset id="form2sms-cf7-tags-fieldset" class="form2sms-cf7-tags-fieldset" style="display:none;">
+			<legend><?php esc_html_e( 'Tagi CF7 w wybranym formularzu', 'form2sms' ); ?></legend>
+			<ul id="form2sms-cf7-tags-list">
+				<li>
+					<?php esc_html_e( 'Wybierz formularz powyżej.', 'form2sms' ); ?>
+				</li>
+			</ul>
+		</fieldset>
+
+		<script>
+			( function () {
+				const select = document.querySelector( 'select[name="form2sms_settings[form_id]"]' );
+				const list = document.getElementById( 'form2sms-cf7-tags-list' );
+				const fieldset = document.getElementById( 'form2sms-cf7-tags-fieldset' );
+				const tagsById = <?php echo ( $tags_by_form_id_json ? $tags_by_form_id_json : '{}' ); ?>;
+
+				if ( ! select || ! list || ! fieldset ) return;
+
+				function setList( items ) {
+					list.innerHTML = '';
+					if ( ! items || ! items.length ) {
+						const li = document.createElement( 'li' );
+						li.textContent = '<?php echo esc_js( __( 'Brak tagów do wyświetlenia dla tego formularza.', 'form2sms' ) ); ?>';
+						list.appendChild( li );
+						return;
+					}
+
+					items.forEach( function ( tag ) {
+						const li = document.createElement( 'li' );
+						const code = document.createElement( 'code' );
+						code.textContent = tag;
+						li.appendChild( code );
+						list.appendChild( li );
+					} );
+				}
+
+				function renderFromSelection() {
+					const formId = parseInt( select.value, 10 );
+					if ( ! formId ) {
+						fieldset.style.display = 'none';
+						return;
+					}
+					fieldset.style.display = '';
+
+					if ( ! tagsById[ formId ] ) {
+						setList( [] );
+						return;
+					}
+					setList( tagsById[ formId ] );
+				}
+
+				select.addEventListener( 'change', renderFromSelection );
+				renderFromSelection();
+			} )();
+		</script>
 		<?php
 	}
 
@@ -218,10 +265,12 @@ class Form2SMS_Settings {
 		$key      = $args['key'];
 		$value    = $settings[ $key ] ?? '';
 		$desc     = $args['description'] ?? '';
+		$maxlength = isset( $args['maxlength'] ) ? (int) $args['maxlength'] : null;
 		?>
 		<input type="text"
 			name="form2sms_settings[<?php echo esc_attr( $key ); ?>]"
 			value="<?php echo esc_attr( $value ); ?>"
+			<?php echo ( $maxlength ? 'maxlength="' . esc_attr( (string) $maxlength ) . '"' : '' ); ?>
 			class="regular-text">
 		<?php if ( $desc ) : ?>
 			<p class="description"><?php echo esc_html( $desc ); ?></p>
@@ -295,10 +344,11 @@ class Form2SMS_Settings {
 		$clean = [];
 
 		// CF7
-		$clean['form_id']      = absint( $input['form_id'] ?? $defaults['form_id'] );
-		$clean['field_name']   = sanitize_text_field( $input['field_name']   ?? $defaults['field_name'] );
-		$clean['field_phone']  = sanitize_text_field( $input['field_phone']  ?? $defaults['field_phone'] );
-		$clean['field_course'] = sanitize_text_field( $input['field_course'] ?? $defaults['field_course'] );
+		$clean['form_id'] = absint( $input['form_id'] ?? $defaults['form_id'] );
+		$template = sanitize_text_field( $input['sms_template'] ?? $defaults['sms_template'] );
+		$clean['sms_template'] = trim( (string) $template ) !== ''
+			? substr( (string) $template, 0, 159 )
+			: (string) $defaults['sms_template'];
 
 		// SMSAPI
 		$clean['api_token']   = sanitize_text_field( $input['api_token'] ?? '' );
@@ -372,6 +422,115 @@ class Form2SMS_Settings {
 	}
 
 	/**
+	 * Wyciąga nazwy tagów CF7, które odpowiadają polom formularza.
+	 *
+	 * @param int $form_id ID formularza CF7.
+	 * @return string[] Unikalna, posortowana lista nazw tagów.
+	 */
+	private function get_cf7_form_tags( int $form_id ): array {
+		$source = get_post_meta( $form_id, '_form', true );
+		if ( ! is_string( $source ) || '' === trim( $source ) ) {
+			$source = (string) get_post_field( 'post_content', $form_id );
+		}
+		if ( ! is_string( $source ) || '' === trim( $source ) ) {
+			return [];
+		}
+
+		// Whitelist typów pól, które CF7 wysyła w submitted data.
+		// Dzięki temu unikamy tagów strukturalnych typu [span], [div] itd.
+		$field_types = [
+			'text',
+			'email',
+			'tel',
+			'url',
+			'number',
+			'date',
+			'password',
+			'textarea',
+			'select',
+			'radio',
+			'checkbox',
+			'acceptance',
+			'file',
+			'quiz',
+			'range',
+			'hidden',
+		];
+
+		$ignored_simple_tags = [
+			'span',
+			'div',
+			'p',
+			'label',
+			'fieldset',
+			'legend',
+			'br',
+			'hr',
+			'table',
+			'thead',
+			'tbody',
+			'tr',
+			'td',
+			'th',
+			'ul',
+			'ol',
+			'li',
+			'h1',
+			'h2',
+			'h3',
+			'h4',
+			'h5',
+			'h6',
+			'strong',
+			'em',
+			'small',
+			'button',
+			'submit',
+			'captcha',
+			'recaptcha',
+		];
+
+		$tags = [];
+
+		// Typowane tagi: [type field-name ...] (np. [text your-name]).
+		if ( preg_match_all( '/\[(\/?)([a-zA-Z][a-zA-Z0-9_-]*\*?)\s+([a-zA-Z0-9_-]+)/', $source, $matches, PREG_SET_ORDER ) ) {
+			foreach ( $matches as $m ) {
+				$type = strtolower( rtrim( (string) $m[2], '*' ) );
+				if ( ! in_array( $type, $field_types, true ) ) {
+					continue;
+				}
+				$tags[] = (string) $m[3];
+			}
+		}
+
+		// Proste tagi: [field-name] (CF7 wspiera skróty).
+		if ( preg_match_all( '/\[(\/?)([a-zA-Z0-9_-]+)\]/', $source, $matches2, PREG_SET_ORDER ) ) {
+			foreach ( $matches2 as $m ) {
+				$name = strtolower( (string) $m[2] );
+				if ( in_array( $name, $ignored_simple_tags, true ) ) {
+					continue;
+				}
+				$tags[] = (string) $m[2];
+			}
+		}
+
+		// Unikalność bez zmiany oryginalnego casingu dla pierwszego wystąpienia.
+		$unique = [];
+		foreach ( $tags as $tag ) {
+			$key = strtolower( (string) $tag );
+			if ( isset( $unique[ $key ] ) ) {
+				continue;
+			}
+			$unique[ $key ] = (string) $tag;
+		}
+
+		$final = array_values( $unique );
+		sort( $final, SORT_NATURAL | SORT_FLAG_CASE );
+
+		return $final;
+	}
+
+	/**
 	 * Zwraca aktualne ustawienia wtyczki (z domyślnymi jako fallback).
 	 */
 	public static function get_settings(): array {
@@ -387,9 +546,7 @@ class Form2SMS_Settings {
 	public static function get_defaults(): array {
 		return [
 			'form_id'        => 0,
-			'field_name'     => 'your-name',
-			'field_phone'    => 'your-phone',
-			'field_course'   => 'your-subject',
+			'sms_template'   => 'Wiadomosc od [your-name] telefon [gsm] email [email] Tresc [message]',
 			'api_token'      => '',
 			'admin_phone'    => '',
 			'enabled'        => false,

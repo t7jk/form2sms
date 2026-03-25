@@ -79,9 +79,10 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 
 		$sender = new \Form2SMS_SMS_Sender();
 		$ok     = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Test kurs',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Test kurs',
 		] );
 
 		$this->assertFalse( $ok );
@@ -104,9 +105,10 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		add_filter( 'pre_http_request', $this->preHttpFilter, 10, 3 );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Test kurs',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Test kurs',
 		] );
 		$this->assertFalse( $ok );
 
@@ -126,9 +128,10 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		add_filter( 'pre_http_request', $this->preHttpFilter, 10, 3 );
 
 		$ok2 = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Test kurs',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Test kurs',
 		] );
 		$this->assertFalse( $ok2 );
 	}
@@ -157,9 +160,10 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		add_filter( 'pre_http_request', $this->preHttpFilter, 10, 3 );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Test kurs',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Test kurs',
 		] );
 
 		$this->assertFalse( $ok );
@@ -189,9 +193,10 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		] );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Kurs PHP',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Kurs PHP',
 		] );
 
 		$this->assertTrue( $ok );
@@ -215,18 +220,19 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 
 		$this->setPreHttpResponse( 200, [] );
 
-		$data = [
-			'name'   => 'Jan Żółć',
-			'phone'  => '500600700',
-			'course' => str_repeat( 'A', 300 ),
+		$posted = [
+			'your-name' => 'Jan Żółć',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => str_repeat( 'A', 300 ),
 		];
 
 		$reflection = new \ReflectionClass( \Form2SMS_SMS_Sender::class );
 		$build      = $reflection->getMethod( 'build_message' );
 		$build->setAccessible( true );
-		$expectedMessage = $build->invoke( $sender, $data );
+		$expectedMessage = $build->invoke( $sender, $posted );
 
-		$ok = $sender->send( $data );
+		$ok = $sender->send( $posted );
 		$this->assertTrue( $ok );
 
 		$this->assertArrayHasKey( 'args', $this->capturedRequest );
@@ -257,9 +263,10 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		$this->setPreHttpResponse( 500, [] );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Kurs PHP',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Kurs PHP',
 		] );
 
 		$this->assertFalse( $ok );
@@ -285,9 +292,10 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		] );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Kurs PHP',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Kurs PHP',
 		] );
 
 		$this->assertFalse( $ok );
@@ -312,9 +320,10 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		] );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Kurs PHP',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Kurs PHP',
 		] );
 
 		$this->assertFalse( $ok );
@@ -337,9 +346,10 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		$this->setPreHttpWPError( 'timeout', 'timeout' );
 
 		$ok = $sender->send( [
-			'name'   => 'Jan Kowalski',
-			'phone'  => '500600700',
-			'course' => 'Kurs PHP',
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Kurs PHP',
 		] );
 
 		$this->assertFalse( $ok );

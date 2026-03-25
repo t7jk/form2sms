@@ -66,27 +66,11 @@ msgid "Aktywny formularz"
 msgstr ""
 
 #: includes/class-settings.php
-msgid "Tag pola: Imię i Nazwisko"
+msgid "Szablon treści SMS"
 msgstr ""
 
 #: includes/class-settings.php
-msgid "Nazwa tagu CF7, np. your-name"
-msgstr ""
-
-#: includes/class-settings.php
-msgid "Tag pola: Telefon"
-msgstr ""
-
-#: includes/class-settings.php
-msgid "Nazwa tagu CF7, np. your-phone"
-msgstr ""
-
-#: includes/class-settings.php
-msgid "Tag pola: Kurs"
-msgstr ""
-
-#: includes/class-settings.php
-msgid "Nazwa tagu CF7, np. your-subject"
+msgid "Wstawiaj tagi CF7 w nawiasach `[]`, np. [your-name] albo [message]. Maks. 159 znaków."
 msgstr ""
 
 #: includes/class-settings.php

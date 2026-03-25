@@ -36,9 +36,7 @@ class Form2SMS_SettingsTest extends AppTestCase {
 
 		$input = [
 			'form_id'      => '-12',
-			'field_name'   => '<script>alert(1)</script>Jan',
-			'field_phone'  => 'your-phone',
-			'field_course' => 'your-subject',
+			'sms_template' => '<script>alert(1)</script>Wiadomosc od [your-name]',
 			'api_token'    => ' token-123 ',
 			'admin_phone'  => '48 500-600-700',
 			'enabled'      => '1',
@@ -51,9 +49,7 @@ class Form2SMS_SettingsTest extends AppTestCase {
 		$clean = $settingsObj->sanitize_settings( $input );
 
 		$this->assertSame( 12, $clean['form_id'] );
-		$this->assertSame( 'alert(1)Jan', $clean['field_name'] );
-		$this->assertSame( 'your-phone', $clean['field_phone'] );
-		$this->assertSame( 'your-subject', $clean['field_course'] );
+		$this->assertSame( 'alert(1)Wiadomosc od [your-name]', $clean['sms_template'] );
 
 		$this->assertSame( 'token-123', $clean['api_token'] );
 		$this->assertSame( '48500600700', $clean['admin_phone'] );
