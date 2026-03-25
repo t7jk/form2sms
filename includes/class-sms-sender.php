@@ -62,6 +62,34 @@ class Form2SMS_SMS_Sender {
 		return $success;
 	}
 
+	/**
+	 * Wysyła testowy SMS na bazie szablonu z ustawień.
+	 * W treści zamienia tagi CF7 `[tag]` na same nazwy tagów (bez danych).
+	 *
+	 * Nie podbija dziennego licznika SMS (to tylko test).
+	 *
+	 * @return bool True jeśli API zwróciło sukces, false w przeciwnym razie.
+	 */
+	public function send_test(): bool {
+		$settings = Form2SMS_Settings::get_settings();
+
+		// Token i numer docelowy muszą być ustawione.
+		if ( empty( $settings['api_token'] ) || empty( $settings['admin_phone'] ) ) {
+			error_log( '[Form2SMS] Brak tokena API lub numeru telefonu admina w ustawieniach (test).' );
+			return false;
+		}
+
+		// Respektuj dzienny limit, ale nie zwiększaj licznika przy teście.
+		if ( ! $this->check_daily_limit( $settings ) ) {
+			error_log( '[Form2SMS] Dzienny limit osiągnięty (test).' );
+			return false;
+		}
+
+		$message = $this->build_test_message();
+
+		return $this->call_api( (string) $settings['api_token'], (string) $settings['admin_phone'], $message );
+	}
+
 	// -------------------------------------------------------------------------
 	// Budowanie treści SMS
 	// -------------------------------------------------------------------------
@@ -70,7 +98,7 @@ class Form2SMS_SMS_Sender {
 	 * Buduje treść SMS z danych formularza.
 	 * Zastępuje polskie znaki, skraca do 159 znaków.
 	 *
-	 * @param array $data Tablica z kluczami: name, phone, course.
+	 * @param array<string,string> $postedValues Dane CF7 (tag => value).
 	 * @return string Gotowa treść SMS.
 	 */
 	private function build_message( array $postedValues ): string {
@@ -87,6 +115,22 @@ class Form2SMS_SMS_Sender {
 	}
 
 	/**
+	 * Buduje treść SMS w trybie testowym.
+	 * Tagi CF7 `[tag]` zamienia na same nazwy tagów `tag` (bez nawiasów).
+	 *
+	 * @return string Gotowa treść testowego SMS.
+	 */
+	private function build_test_message(): string {
+		$settings = Form2SMS_Settings::get_settings();
+		$template = (string) ( $settings['sms_template'] ?? 'Wiadomosc od [your-name] telefon [gsm] email [email] Tresc [message]' );
+
+		$message = $this->replace_template_tags_with_tag_names( $template );
+		$message = $this->replace_diacritics( $message );
+
+		return substr( $message, 0, self::MAX_LENGTH );
+	}
+
+	/**
 	 * Zamienia tagi w formie `[tag]` na wartości z danych CF7.
 	 *
 	 * @param string              $template Szablon SMS.
@@ -98,7 +142,15 @@ class Form2SMS_SMS_Sender {
 		$values = [];
 		foreach ( $postedValues as $k => $v ) {
 			$key = strtolower( (string) $k );
-			$values[ $key ] = sanitize_text_field( (string) $v );
+			if ( is_array( $v ) ) {
+				$parts = [];
+				foreach ( $v as $vv ) {
+					$parts[] = sanitize_text_field( (string) $vv );
+				}
+				$values[ $key ] = implode( ', ', $parts );
+			} else {
+				$values[ $key ] = sanitize_text_field( (string) $v );
+			}
 		}
 
 		return (string) preg_replace_callback(
@@ -106,6 +158,23 @@ class Form2SMS_SMS_Sender {
 			function ( array $m ) use ( $values ) : string {
 				$tag = strtolower( (string) $m[1] );
 				return $values[ $tag ] ?? '';
+			},
+			$template
+		);
+	}
+
+	/**
+	 * Zamienia tagi w formie `[tag]` na same nazwy tagów (bez nawiasów).
+	 *
+	 * @param string $template Szablon SMS.
+	 * @return string Gotowy tekst testowy.
+	 */
+	private function replace_template_tags_with_tag_names( string $template ): string {
+		return (string) preg_replace_callback(
+			'/\[([a-zA-Z][a-zA-Z0-9_-]*)\]/',
+			function ( array $m ) : string {
+				// Utrzymujemy casing z szablonu, żeby było czytelnie dla użytkownika.
+				return (string) $m[1];
 			},
 			$template
 		);
