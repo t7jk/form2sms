@@ -52,7 +52,7 @@ class Form2SMS_SMS_Sender {
 		$message = $this->build_message( $postedValues );
 
 		// Wyślij przez API.
-		$success = $this->call_api( $settings['api_token'], $settings['admin_phone'], $message );
+		$success = $this->call_api( $settings, (string) $settings['api_token'], (string) $settings['admin_phone'], $message );
 
 		// Zwiększ licznik jeśli wysyłka się powiodła.
 		if ( $success ) {
@@ -87,12 +87,28 @@ class Form2SMS_SMS_Sender {
 
 		$message = $this->build_test_message();
 
-		return $this->call_api( (string) $settings['api_token'], (string) $settings['admin_phone'], $message );
+		return $this->call_api( $settings, (string) $settings['api_token'], (string) $settings['admin_phone'], $message );
 	}
 
 	// -------------------------------------------------------------------------
 	// Budowanie treści SMS
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Wybiera szablon SMS według aktywnego źródła formularza (CF7 / WPForms).
+	 *
+	 * @param array<string,mixed> $settings Ustawienia wtyczki.
+	 */
+	private function get_active_template( array $settings ): string {
+		$fallback = 'Wiadomosc od [your-name] telefon [gsm] email [email] Tresc [message]';
+		$source   = (string) ( $settings['form_source'] ?? '' );
+		if ( 'wpforms' === $source ) {
+			$t = (string) ( $settings['sms_template_wpforms'] ?? '' );
+		} else {
+			$t = (string) ( $settings['sms_template_cf7'] ?? '' );
+		}
+		return trim( $t ) !== '' ? $t : $fallback;
+	}
 
 	/**
 	 * Buduje treść SMS z danych formularza.
@@ -102,8 +118,7 @@ class Form2SMS_SMS_Sender {
 	 * @return string Gotowa treść SMS.
 	 */
 	private function build_message( array $postedValues ): string {
-		$settings = Form2SMS_Settings::get_settings();
-		$template = (string) ( $settings['sms_template'] ?? 'Wiadomosc od [your-name] telefon [gsm] email [email] Tresc [message]' );
+		$template = $this->get_active_template( Form2SMS_Settings::get_settings() );
 
 		$message = $this->replace_template_tags( $template, $postedValues );
 
@@ -121,8 +136,7 @@ class Form2SMS_SMS_Sender {
 	 * @return string Gotowa treść testowego SMS.
 	 */
 	private function build_test_message(): string {
-		$settings = Form2SMS_Settings::get_settings();
-		$template = (string) ( $settings['sms_template'] ?? 'Wiadomosc od [your-name] telefon [gsm] email [email] Tresc [message]' );
+		$template = $this->get_active_template( Form2SMS_Settings::get_settings() );
 
 		$message = $this->replace_template_tags_with_tag_names( $template );
 		$message = $this->replace_diacritics( $message );
@@ -217,18 +231,32 @@ class Form2SMS_SMS_Sender {
 	 * @param string $message Treść SMS (max 159 znaków, bez polskich liter).
 	 * @return bool True jeśli API zwróciło sukces.
 	 */
-	private function call_api( string $token, string $to, string $message ): bool {
+	/**
+	 * @param array<string,mixed> $settings
+	 */
+	private function call_api( array $settings, string $token, string $to, string $message ): bool {
+		$is_standard = ! empty( $settings['api_standard_mode'] );
+		$sender_name = isset( $settings['sender_name'] ) ? trim( (string) $settings['sender_name'] ) : '';
+
+		$body = [
+			'to'      => $to,
+			'message' => $message,
+			'format'  => 'json',
+		];
+
+		// Standard: wysyłamy jako wiadomość Pro z polem nadawcy (from).
+		// Ekonomiczny: nie wysyłamy parametru `from` (wiadomość domyślna).
+		if ( $is_standard && $sender_name !== '' ) {
+			$body['from'] = $sender_name;
+		}
+
 		$response = wp_remote_post(
 			self::API_URL,
 			[
 				'headers' => [
 					'Authorization' => 'Bearer ' . $token,
 				],
-				'body'    => [
-					'to'      => $to,
-					'message' => $message,
-					'format'  => 'json',
-				],
+				'body'    => $body,
 				'timeout' => 15,
 			]
 		);

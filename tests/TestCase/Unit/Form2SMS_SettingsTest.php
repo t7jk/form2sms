@@ -24,6 +24,18 @@ class Form2SMS_SettingsTest extends AppTestCase {
 		$this->assertSame( $defaults, $settings );
 	}
 
+	public function testGetSettingsMigratesLegacySmsTemplateKey(): void {
+		$legacy = 'Stary szablon [your-name]';
+		update_option( 'form2sms_settings', [
+			'sms_template' => $legacy,
+		] );
+
+		$settings = \Form2SMS_Settings::get_settings();
+
+		$this->assertSame( $legacy, $settings['sms_template_cf7'] );
+		$this->assertSame( $legacy, $settings['sms_template_wpforms'] );
+	}
+
 	public function testSanitizeSettingsSanitizesAndPreservesCounters(): void {
 		// Zasymuluj istniejące liczniki (sanitize_settings nie powinno ich nadpisywać).
 		update_option( 'form2sms_settings', [
@@ -35,24 +47,29 @@ class Form2SMS_SettingsTest extends AppTestCase {
 		$settingsObj = new \Form2SMS_Settings();
 
 		$input = [
-			'form_id'      => '-12',
-			'sms_template' => '<script>alert(1)</script>Wiadomosc od [your-name]',
-			'api_token'    => ' token-123 ',
-			'admin_phone'  => '48 500-600-700',
-			'enabled'      => '1',
-			'sms_limit'    => '0',
+			'form_id'           => '-12',
+			'sms_template_cf7'  => '<script>alert(1)</script>Wiadomosc od [your-name]',
+			'api_token'         => ' token-123 ',
+			'admin_phone'       => '48 500-600-700',
+			'api_standard_mode' => '1',
+			'sender_name'       => ' MyBrandLONGER ',
+			'enabled'           => '1',
+			'sms_limit'         => '0',
 			// Próba nadpisania liczników - sanitize_settings i tak ma je zachować z aktualnych ustawień.
-			'sms_count'      => 999,
-			'sms_count_date' => '2099-12-31',
+			'sms_count'         => 999,
+			'sms_count_date'    => '2099-12-31',
 		];
 
 		$clean = $settingsObj->sanitize_settings( $input );
 
 		$this->assertSame( 12, $clean['form_id'] );
-		$this->assertSame( 'alert(1)Wiadomosc od [your-name]', $clean['sms_template'] );
+		$this->assertSame( 'alert(1)Wiadomosc od [your-name]', $clean['sms_template_cf7'] );
+		$this->assertArrayHasKey( 'sms_template_wpforms', $clean );
 
 		$this->assertSame( 'token-123', $clean['api_token'] );
 		$this->assertSame( '48500600700', $clean['admin_phone'] );
+		$this->assertTrue( (bool) $clean['api_standard_mode'] );
+		$this->assertSame( 'MyBrandLONG', (string) $clean['sender_name'], 'sender_name is trimmed and max 11 chars.' );
 
 		$this->assertTrue( $clean['enabled'] );
 		$this->assertSame( 1, $clean['sms_limit'], 'sms_limit = max(1, absint(...))' );

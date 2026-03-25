@@ -213,6 +213,8 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 			'enabled'     => true,
 			'api_token'   => 'token-123',
 			'admin_phone' => '48500600700',
+			'api_standard_mode' => false,
+			'sender_name'       => 'MyBrand',
 			'sms_limit'   => 100,
 			'sms_count'   => 0,
 			'sms_count_date' => gmdate( 'Y-m-d' ),
@@ -246,6 +248,35 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		$this->assertSame( 'json', (string) $body['format'] );
 		$this->assertSame( $expectedMessage, (string) $body['message'] );
 		$this->assertLessThanOrEqual( 159, strlen( (string) $body['message'] ) );
+		$this->assertArrayNotHasKey( 'from', $body, 'Economic mode must not include from.' );
+	}
+
+	public function testSendInStandardModeIncludesFromWhenSenderNameProvided(): void {
+		$sender = new \Form2SMS_SMS_Sender();
+
+		$this->setPluginSettings( [
+			'enabled'           => true,
+			'api_token'         => 'token-123',
+			'admin_phone'       => '48500600700',
+			'api_standard_mode' => true,
+			'sender_name'       => 'MyBrand',
+			'sms_limit'         => 100,
+			'sms_count'         => 0,
+			'sms_count_date'    => gmdate( 'Y-m-d' ),
+		] );
+
+		$this->setPreHttpResponse( 200, [] );
+
+		$ok = $sender->send( [
+			'your-name' => 'Jan Kowalski',
+			'gsm'       => '500600700',
+			'email'     => 'test@example.com',
+			'message'   => 'Kurs PHP',
+		] );
+		$this->assertTrue( $ok );
+
+		$body = $this->capturedRequest['args']['body'];
+		$this->assertSame( 'MyBrand', (string) $body['from'] );
 	}
 
 	public function testSendReturnsFalseOnHttpErrorAndDoesNotIncrementCounter(): void {
@@ -363,13 +394,14 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		$today = gmdate( 'Y-m-d' );
 
 		$this->setPluginSettings( [
-			'enabled'         => false,
-			'api_token'       => 'token-123',
-			'admin_phone'     => '48500600700',
-			'sms_limit'       => 10,
-			'sms_count'       => 7,
-			'sms_count_date'  => $today,
-			'sms_template'    => 'Wiadomosc od [your-name] telefon [gsm] email [email]',
+			'enabled'            => false,
+			'api_token'          => 'token-123',
+			'admin_phone'        => '48500600700',
+			'sms_limit'          => 10,
+			'sms_count'          => 7,
+			'sms_count_date'     => $today,
+			'form_source'        => 'cf7',
+			'sms_template_cf7'   => 'Wiadomosc od [your-name] telefon [gsm] email [email]',
 		] );
 
 		$this->setPreHttpResponse( 200, [] );

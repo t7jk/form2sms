@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Form2SMS
  * Plugin URI:        https://github.com/form2sms
- * Description:       Wysyła powiadomienie SMS przez SMSAPI.pl po każdym zgłoszeniu formularza Contact Form 7.
+ * Description:       Wysyła powiadomienie SMS przez SMSAPI.pl po zgłoszeniu formularza Contact Form 7 lub WPForms.
  * Version:           1.0.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
