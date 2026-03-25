@@ -12,6 +12,8 @@ class Form2SMS_Settings {
 		add_action( 'admin_menu',    [ $this, 'register_menu' ] );
 		add_action( 'admin_init',    [ $this, 'register_settings' ] );
 		add_action( 'admin_notices', [ $this, 'maybe_show_cf7_notice' ] );
+		add_action( 'admin_notices', [ $this, 'maybe_show_wpforms_notice' ] );
+		add_action( 'admin_post_form2sms_send_test', [ $this, 'handle_send_test' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -40,11 +42,24 @@ class Form2SMS_Settings {
 		}
 
 		$settings = self::get_settings();
+		$test_result = isset( $_GET['form2sms_test_result'] )
+			? sanitize_text_field( (string) $_GET['form2sms_test_result'] )
+			: '';
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Form2SMS — Ustawienia', 'form2sms' ); ?></h1>
 
-			<?php if ( ! $this->is_cf7_active() ) : ?>
+			<?php if ( 'ok' === $test_result ) : ?>
+				<div class="notice notice-success">
+					<p><?php esc_html_e( 'Wysłano testowy SMS.', 'form2sms' ); ?></p>
+				</div>
+			<?php elseif ( 'error' === $test_result ) : ?>
+				<div class="notice notice-error">
+					<p><?php esc_html_e( 'Nie udało się wysłać testowego SMS.', 'form2sms' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ( $settings['form_source'] ?? self::get_defaults()['form_source'] ) === 'cf7' && ! $this->is_cf7_active() ) : ?>
 				<div class="notice notice-error">
 					<p><?php esc_html_e( 'Wtyczka Contact Form 7 nie jest aktywna. Form2SMS wymaga CF7 do działania.', 'form2sms' ); ?></p>
 				</div>
@@ -56,6 +71,17 @@ class Form2SMS_Settings {
 				do_settings_sections( 'form2sms' );
 				submit_button( __( 'Zapisz ustawienia', 'form2sms' ) );
 				?>
+			</form>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top: 16px;">
+				<?php
+				wp_nonce_field( 'form2sms_send_test', 'form2sms_send_test_nonce' );
+				?>
+				<input type="hidden" name="action" value="form2sms_send_test" />
+				<?php submit_button( __( 'Test', 'form2sms' ), 'secondary', 'form2sms_send_test_submit', false ); ?>
+				<p class="description" style="margin-top: 6px;">
+					<?php esc_html_e( 'W trybie testowym zamieniamy tagi z szablonu na same nazwy (np. [email] → email).', 'form2sms' ); ?>
+				</p>
 			</form>
 
 			<?php
@@ -75,6 +101,30 @@ class Form2SMS_Settings {
 		<?php
 	}
 
+	/**
+	 * Obsługuje wysyłkę testowego SMS z panelu admina.
+	 */
+	public function handle_send_test(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Brak uprawnień.', 'form2sms' ) );
+		}
+
+		check_admin_referer( 'form2sms_send_test', 'form2sms_send_test_nonce' );
+
+		$sender = new Form2SMS_SMS_Sender();
+		$ok     = $sender->send_test();
+
+		$redirect = add_query_arg(
+			[
+				'form2sms_test_result' => $ok ? 'ok' : 'error',
+			],
+			admin_url( 'tools.php?page=form2sms' )
+		);
+
+		wp_safe_redirect( $redirect );
+		exit;
+	}
+
 	// -------------------------------------------------------------------------
 	// Rejestracja pól Settings API
 	// -------------------------------------------------------------------------
@@ -90,6 +140,23 @@ class Form2SMS_Settings {
 				'sanitize_callback' => [ $this, 'sanitize_settings' ],
 				'default'           => self::get_defaults(),
 			]
+		);
+
+		// --- Sekcja: Źródło danych z formularza ---
+		add_settings_section(
+			'form2sms_source',
+			__( 'Źródło danych formularza', 'form2sms' ),
+			'__return_false',
+			'form2sms'
+		);
+
+		add_settings_field(
+			'form_source',
+			__( 'Typ formularza', 'form2sms' ),
+			[ $this, 'field_form_source_radio' ],
+			'form2sms',
+			'form2sms_source',
+			[ 'key' => 'form_source' ]
 		);
 
 		// --- Sekcja: Formularz CF7 ---
@@ -117,8 +184,25 @@ class Form2SMS_Settings {
 			[
 				'key'         => 'sms_template',
 				'maxlength'  => 159,
-				'description' => __( 'Wstawiaj tagi CF7 w nawiasach `[]`, np. [your-name] albo [message]. Maks. 159 znaków.', 'form2sms' )
+				'description' => __( 'Wstawiaj tagi w nawiasach `[]` (np. [your-name] albo [message]). Maks. 159 znaków. Dla WPForms tagi najlepiej budować z etykiet pól (lowercase + spacje → `-`).', 'form2sms' )
 			]
+		);
+
+		// --- Sekcja: Formularz WPForms ---
+		add_settings_section(
+			'form2sms_wpforms',
+			__( 'Formularz WPForms', 'form2sms' ),
+			'__return_false',
+			'form2sms'
+		);
+
+		add_settings_field(
+			'wpforms_form_id',
+			__( 'Aktywny formularz WPForms', 'form2sms' ),
+			[ $this, 'field_wpforms_form_select' ],
+			'form2sms',
+			'form2sms_wpforms',
+			[ 'key' => 'wpforms_form_id' ]
 		);
 
 		// --- Sekcja: SMSAPI ---
@@ -178,9 +262,87 @@ class Form2SMS_Settings {
 	// Rendery poszczególnych pól
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Radio buttony dla wyboru źródła danych.
+	 */
+	public function field_form_source_radio( array $args ): void {
+		$settings = self::get_settings();
+		$key      = $args['key'] ?? 'form_source';
+		$source   = (string) ( $settings[ $key ] ?? self::get_defaults()['form_source'] );
+		?>
+		<fieldset id="form2sms-form-source">
+			<label>
+				<input type="radio"
+					name="form2sms_settings[<?php echo esc_attr( $key ); ?>]"
+					value="cf7"
+					<?php checked( 'cf7' === $source ); ?>>
+				<?php esc_html_e( 'Contact Form 7', 'form2sms' ); ?>
+			</label>
+			<br />
+			<label>
+				<input type="radio"
+					name="form2sms_settings[<?php echo esc_attr( $key ); ?>]"
+					value="wpforms"
+					<?php checked( 'wpforms' === $source ); ?>>
+				<?php esc_html_e( 'WPForms', 'form2sms' ); ?>
+			</label>
+		</fieldset>
+		<script>
+			( function () {
+				const radioSelector = 'input[name="form2sms_settings[form_source]"]';
+				const cf7El = document.getElementById( 'form2sms-source-cf7' );
+				const wpEl = document.getElementById( 'form2sms-source-wpforms' );
+				if ( ! cf7El || ! wpEl ) return;
+
+				function sync() {
+					const checked = document.querySelector( radioSelector + ':checked' );
+					const val = checked ? checked.value : 'cf7';
+					cf7El.style.display = ( val === 'cf7' ) ? '' : 'none';
+					wpEl.style.display = ( val === 'wpforms' ) ? '' : 'none';
+				}
+
+				document.querySelectorAll( radioSelector ).forEach( function ( r ) {
+					r.addEventListener( 'change', sync );
+				} );
+
+				sync();
+			} )();
+		</script>
+		<?php
+	}
+
+	/**
+	 * Dropdown z listą aktywnych formularzy WPForms.
+	 */
+	public function field_wpforms_form_select( array $args ): void {
+		$settings = self::get_settings();
+		$source   = (string) ( $settings['form_source'] ?? self::get_defaults()['form_source'] );
+		$visible  = ( 'wpforms' === $source ) ? '' : 'none';
+
+		$forms = $this->get_wpforms_forms();
+		?>
+		<div id="form2sms-source-wpforms" style="display:<?php echo esc_attr( $visible ); ?>;">
+			<select name="form2sms_settings[wpforms_form_id]">
+				<option value="0"><?php esc_html_e( '— wybierz formularz —', 'form2sms' ); ?></option>
+				<?php foreach ( $forms as $id => $title ) : ?>
+					<option value="<?php echo esc_attr( $id ); ?>"
+						<?php selected( (int) $settings['wpforms_form_id'], $id ); ?>>
+						<?php echo esc_html( $title ); ?> (ID: <?php echo esc_html( $id ); ?>)
+					</option>
+				<?php endforeach; ?>
+			</select>
+			<?php if ( empty( $forms ) ) : ?>
+				<p class="description"><?php esc_html_e( 'Brak formularzy WPForms. Utwórz formularz w WPForms.', 'form2sms' ); ?></p>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
 	/** Dropdown z listą aktywnych formularzy CF7. */
 	public function field_form_select(): void {
 		$settings = self::get_settings();
+		$source   = (string) ( $settings['form_source'] ?? self::get_defaults()['form_source'] );
+		$visible  = ( 'wpforms' === $source ) ? 'none' : '';
 		$forms    = $this->get_cf7_forms();
 		$tags_by_form_id = [];
 		foreach ( $forms as $id => $title ) {
@@ -188,27 +350,28 @@ class Form2SMS_Settings {
 		}
 		$tags_by_form_id_json = wp_json_encode( $tags_by_form_id );
 		?>
-		<select name="form2sms_settings[form_id]">
-			<option value="0"><?php esc_html_e( '— wybierz formularz —', 'form2sms' ); ?></option>
-			<?php foreach ( $forms as $id => $title ) : ?>
-				<option value="<?php echo esc_attr( $id ); ?>"
-					<?php selected( (int) $settings['form_id'], $id ); ?>>
-					<?php echo esc_html( $title ); ?> (ID: <?php echo esc_html( $id ); ?>)
-				</option>
-			<?php endforeach; ?>
-		</select>
-		<?php if ( empty( $forms ) ) : ?>
-			<p class="description"><?php esc_html_e( 'Brak formularzy CF7. Utwórz formularz w Contact Form 7.', 'form2sms' ); ?></p>
-		<?php endif; ?>
+		<div id="form2sms-source-cf7" style="display:<?php echo esc_attr( $visible ); ?>;">
+			<select name="form2sms_settings[form_id]">
+				<option value="0"><?php esc_html_e( '— wybierz formularz —', 'form2sms' ); ?></option>
+				<?php foreach ( $forms as $id => $title ) : ?>
+					<option value="<?php echo esc_attr( $id ); ?>"
+						<?php selected( (int) $settings['form_id'], $id ); ?>>
+						<?php echo esc_html( $title ); ?> (ID: <?php echo esc_html( $id ); ?>)
+					</option>
+				<?php endforeach; ?>
+			</select>
+			<?php if ( empty( $forms ) ) : ?>
+				<p class="description"><?php esc_html_e( 'Brak formularzy CF7. Utwórz formularz w Contact Form 7.', 'form2sms' ); ?></p>
+			<?php endif; ?>
 
-		<fieldset id="form2sms-cf7-tags-fieldset" class="form2sms-cf7-tags-fieldset" style="display:none;">
-			<legend><?php esc_html_e( 'Tagi CF7 w wybranym formularzu', 'form2sms' ); ?></legend>
-			<ul id="form2sms-cf7-tags-list">
-				<li>
-					<?php esc_html_e( 'Wybierz formularz powyżej.', 'form2sms' ); ?>
-				</li>
-			</ul>
-		</fieldset>
+			<fieldset id="form2sms-cf7-tags-fieldset" class="form2sms-cf7-tags-fieldset" style="display:none;">
+				<legend><?php esc_html_e( 'Tagi CF7 w wybranym formularzu', 'form2sms' ); ?></legend>
+				<ul id="form2sms-cf7-tags-list">
+					<li>
+						<?php esc_html_e( 'Wybierz formularz powyżej.', 'form2sms' ); ?>
+					</li>
+				</ul>
+			</fieldset>
 
 		<script>
 			( function () {
@@ -256,6 +419,7 @@ class Form2SMS_Settings {
 				renderFromSelection();
 			} )();
 		</script>
+		</div>
 		<?php
 	}
 
@@ -343,8 +507,16 @@ class Form2SMS_Settings {
 
 		$clean = [];
 
+		// Źródło danych
+		$source = sanitize_text_field( (string) ( $input['form_source'] ?? $defaults['form_source'] ) );
+		$clean['form_source'] = in_array( $source, [ 'cf7', 'wpforms' ], true )
+			? $source
+			: (string) $defaults['form_source'];
+
 		// CF7
 		$clean['form_id'] = absint( $input['form_id'] ?? $defaults['form_id'] );
+		// WPForms
+		$clean['wpforms_form_id'] = absint( $input['wpforms_form_id'] ?? $defaults['wpforms_form_id'] );
 		$template = sanitize_text_field( $input['sms_template'] ?? $defaults['sms_template'] );
 		$clean['sms_template'] = trim( (string) $template ) !== ''
 			? substr( (string) $template, 0, 159 )
@@ -374,6 +546,10 @@ class Form2SMS_Settings {
 	 * Wyświetla ostrzeżenie w panelu admina, gdy CF7 nie jest aktywny.
 	 */
 	public function maybe_show_cf7_notice(): void {
+		$settings = self::get_settings();
+		if ( ( $settings['form_source'] ?? self::get_defaults()['form_source'] ) !== 'cf7' ) {
+			return;
+		}
 		if ( $this->is_cf7_active() ) {
 			return;
 		}
@@ -382,6 +558,29 @@ class Form2SMS_Settings {
 			<p>
 				<strong><?php esc_html_e( 'Form2SMS:', 'form2sms' ); ?></strong>
 				<?php esc_html_e( 'Wtyczka Contact Form 7 nie jest zainstalowana lub aktywna.', 'form2sms' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Wyświetla ostrzeżenie w panelu admina, gdy WPForms nie jest aktywny,
+	 * a wybrano tryb WPForms.
+	 */
+	public function maybe_show_wpforms_notice(): void {
+		$settings = self::get_settings();
+		if ( ( $settings['form_source'] ?? self::get_defaults()['form_source'] ) !== 'wpforms' ) {
+			return;
+		}
+		if ( $this->is_wpforms_active() ) {
+			return;
+		}
+
+		?>
+		<div class="notice notice-error">
+			<p>
+				<strong><?php esc_html_e( 'Form2SMS:', 'form2sms' ); ?></strong>
+				<?php esc_html_e( 'Wtyczka WPForms nie jest zainstalowana lub aktywna. Form2SMS wymaga WPForms do trybu WPForms.', 'form2sms' ); ?>
 			</p>
 		</div>
 		<?php
@@ -399,6 +598,13 @@ class Form2SMS_Settings {
 	}
 
 	/**
+	 * Sprawdza czy WPForms jest aktywny.
+	 */
+	private function is_wpforms_active(): bool {
+		return function_exists( 'wpforms' );
+	}
+
+	/**
 	 * Pobiera listę formularzy CF7: [id => tytuł].
 	 */
 	private function get_cf7_forms(): array {
@@ -408,6 +614,29 @@ class Form2SMS_Settings {
 
 		$posts = get_posts( [
 			'post_type'      => 'wpcf7_contact_form',
+			'numberposts'    => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		] );
+
+		$forms = [];
+		foreach ( $posts as $post ) {
+			$forms[ $post->ID ] = $post->post_title;
+		}
+
+		return $forms;
+	}
+
+	/**
+	 * Pobiera listę formularzy WPForms: [id => tytuł].
+	 */
+	private function get_wpforms_forms(): array {
+		if ( ! $this->is_wpforms_active() ) {
+			return [];
+		}
+
+		$posts = get_posts( [
+			'post_type'      => 'wpforms',
 			'numberposts'    => -1,
 			'orderby'        => 'title',
 			'order'          => 'ASC',
@@ -545,7 +774,9 @@ class Form2SMS_Settings {
 	 */
 	public static function get_defaults(): array {
 		return [
+			'form_source'      => 'cf7',
 			'form_id'        => 0,
+			'wpforms_form_id'=> 0,
 			'sms_template'   => 'Wiadomosc od [your-name] telefon [gsm] email [email] Tresc [message]',
 			'api_token'      => '',
 			'admin_phone'    => '',

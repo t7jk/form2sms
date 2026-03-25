@@ -24,6 +24,7 @@ define( 'FORM2SMS_URL', plugin_dir_url( __FILE__ ) );
 require_once FORM2SMS_PATH . 'includes/class-settings.php';
 require_once FORM2SMS_PATH . 'includes/class-sms-sender.php';
 require_once FORM2SMS_PATH . 'includes/class-cf7-handler.php';
+require_once FORM2SMS_PATH . 'includes/class-wpforms-handler.php';
 
 /**
  * Uruchamia wtyczkę po załadowaniu wszystkich pluginów.
@@ -41,6 +42,7 @@ function form2sms_bootstrap(): void {
 	$settings = new Form2SMS_Settings();
 	$sender   = new Form2SMS_SMS_Sender();
 	new Form2SMS_CF7_Handler( $sender );
+	new Form2SMS_WPForms_Handler( $sender );
 }
 add_action( 'plugins_loaded', 'form2sms_bootstrap' );
 

@@ -37,6 +37,9 @@ class Form2SMS_CF7_Handler {
 		}
 
 		$settings = Form2SMS_Settings::get_settings();
+		if ( ( $settings['form_source'] ?? 'cf7' ) !== 'cf7' ) {
+			return;
+		}
 
 		// Pobierz ID formularza — obsługa CF7 5.x i starszych wersji.
 		$form_id = method_exists( $contact_form, 'id' )

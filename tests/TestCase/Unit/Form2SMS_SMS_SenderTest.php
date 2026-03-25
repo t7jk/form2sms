@@ -356,5 +356,41 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		$settings = \Form2SMS_Settings::get_settings();
 		$this->assertSame( 0, (int) $settings['sms_count'] );
 	}
+
+	public function testSendTestSendsTemplateWithTagNamesAndDoesNotIncrementCounter(): void {
+		$sender = new \Form2SMS_SMS_Sender();
+
+		$today = gmdate( 'Y-m-d' );
+
+		$this->setPluginSettings( [
+			'enabled'         => false,
+			'api_token'       => 'token-123',
+			'admin_phone'     => '48500600700',
+			'sms_limit'       => 10,
+			'sms_count'       => 7,
+			'sms_count_date'  => $today,
+			'sms_template'    => 'Wiadomosc od [your-name] telefon [gsm] email [email]',
+		] );
+
+		$this->setPreHttpResponse( 200, [] );
+
+		$ok = $sender->send_test();
+		$this->assertTrue( $ok );
+
+		// Walidacja wysłanej treści.
+		$reflection = new \ReflectionClass( \Form2SMS_SMS_Sender::class );
+		$build      = $reflection->getMethod( 'build_test_message' );
+		$build->setAccessible( true );
+		$expectedMessage = $build->invoke( $sender );
+
+		$this->assertArrayHasKey( 'args', $this->capturedRequest );
+		$body = $this->capturedRequest['args']['body'];
+		$this->assertSame( '48500600700', (string) $body['to'] );
+		$this->assertSame( $expectedMessage, (string) $body['message'] );
+
+		// Test nie powinien inkrementować licznika.
+		$settings = \Form2SMS_Settings::get_settings();
+		$this->assertSame( 7, (int) $settings['sms_count'] );
+	}
 }
 
