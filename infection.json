@@ -1,0 +1,21 @@
+{
+  "source": {
+    "directories": ["includes"],
+    "excludes": []
+  },
+  "timeout": 10,
+  "logs": {
+    "text": "tests/reports/mutation_log.txt",
+    "html": "tests/reports/mutation_report.html",
+    "json": "tests/reports/mutation_report.json"
+  },
+  "mutators": {
+    "@default": true
+  },
+  "minMsi": 60,
+  "minCoveredMsi": 75,
+  "phpUnit": {
+    "configDir": "."
+  }
+}
+

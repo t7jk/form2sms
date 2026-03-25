@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+	bootstrap="tests/bootstrap.php"
+	colors="true"
+	stopOnError="false"
+	stopOnFailure="false"
+	beStrictAboutTestsThatDoNotTestAnything="true"
+	beStrictAboutOutputDuringTests="true"
+	enforceTimeLimit="true"
+	defaultTimeLimit="30"
+	timeoutForSmallTests="10"
+	timeoutForMediumTests="20"
+	timeoutForLargeTests="60"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+>
+	<testsuites>
+		<testsuite name="Unit">
+			<directory>tests/TestCase/Unit</directory>
+		</testsuite>
+		<testsuite name="Integration">
+			<directory>tests/TestCase/Integration</directory>
+		</testsuite>
+		<testsuite name="Regression">
+			<directory>tests/TestCase/Regression</directory>
+		</testsuite>
+	</testsuites>
+
+	<coverage>
+		<include>
+			<directory suffix=".php">includes</directory>
+			<file>form2sms.php</file>
+		</include>
+		<report>
+			<html outputDirectory="tests/reports/coverage"/>
+			<text outputFile="tests/reports/coverage.txt" showUncoveredFiles="true"/>
+		</report>
+	</coverage>
+
+	<logging>
+		<junit outputFile="tests/reports/junit.xml"/>
+	</logging>
+
+	<php>
+		<const name="WP_PHPUNIT__TESTS_CONFIG" value="tests/wp-tests-config.php" />
+		<env name="AGENT_TEST_MODE" value="true"/>
+		<env name="BYPASS" value="true"/>
+	</php>
+</phpunit>
+

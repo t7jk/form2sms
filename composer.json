@@ -1,0 +1,28 @@
+{
+  "name": "form2sms/form2sms-plugin",
+  "description": "Form2SMS WordPress plugin",
+  "type": "wordpress-plugin",
+  "require": {
+    "php": ">=7.4"
+  },
+  "require-dev": {
+    "wp-phpunit/wp-phpunit": "*",
+    "yoast/phpunit-polyfills": "*",
+    "infection/infection": "*"
+  },
+  "autoload": {
+    "classmap": [
+      "includes/"
+    ]
+  },
+  "autoload-dev": {
+    "classmap": [
+      "tests/"
+    ]
+  },
+  "scripts": {
+    "test": "phpunit -c phpunit.xml.dist",
+    "test:coverage": "XDEBUG_MODE=coverage phpunit -c phpunit.xml.dist --coverage-text"
+  }
+}
+
