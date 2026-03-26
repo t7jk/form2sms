@@ -248,7 +248,7 @@ class Form2SMS_SMS_SenderTest extends AppTestCase {
 		$this->assertSame( 'json', (string) $body['format'] );
 		$this->assertSame( $expectedMessage, (string) $body['message'] );
 		$this->assertLessThanOrEqual( 159, strlen( (string) $body['message'] ) );
-		$this->assertSame( 'SMSAPI', (string) $body['from'], 'Economic mode forces system sender per SMSAPI docs.' );
+		$this->assertArrayNotHasKey( 'from', $body, 'Economic mode omits `from` so SMSAPI uses account default sender (set ECO as default in panel).' );
 	}
 
 	public function testSendInStandardModeIncludesFromWhenSenderNameProvided(): void {

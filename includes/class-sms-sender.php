@@ -14,13 +14,6 @@ class Form2SMS_SMS_Sender {
 	/** Maksymalna długość SMS w znakach. */
 	private const MAX_LENGTH = 159;
 
-	/**
-	 * Nadawca przy trybie ekonomicznym: dokumentacja SMSAPI — gdy nie ma domyślnego pola nadawcy,
-	 * wiadomość idzie z nazwą „SMSAPI”; przykład Mail2SMS używa from=SMSAPI. Samo pominięcie `from`
-	 * powodowałoby użycie domyślnego pola z konta (często własna nazwa = wyższa cena).
-	 */
-	private const ECONOMIC_SENDER_NAME = 'SMSAPI';
-
 	// -------------------------------------------------------------------------
 	// Główna metoda wysyłki
 	// -------------------------------------------------------------------------
@@ -233,13 +226,11 @@ class Form2SMS_SMS_Sender {
 	/**
 	 * Wysyła żądanie HTTP do API SMSAPI.pl.
 	 *
-	 * @param string $token   Bearer token OAuth.
-	 * @param string $to      Numer docelowy (np. 48500600700).
-	 * @param string $message Treść SMS (max 159 znaków, bez polskich liter).
+	 * @param array<string,mixed> $settings Ustawienia wtyczki (tryb standard/ekonomiczny, nadawca).
+	 * @param string              $token    Bearer token OAuth.
+	 * @param string              $to       Numer docelowy (np. 48500600700).
+	 * @param string              $message  Treść SMS (max 159 znaków, bez polskich liter).
 	 * @return bool True jeśli API zwróciło sukces.
-	 */
-	/**
-	 * @param array<string,mixed> $settings
 	 */
 	private function call_api( array $settings, string $token, string $to, string $message ): bool {
 		$is_standard = ! empty( $settings['api_standard_mode'] );
@@ -251,12 +242,12 @@ class Form2SMS_SMS_Sender {
 			'format'  => 'json',
 		];
 
-		// Standard: własne pole nadawcy (zweryfikowana nazwa z ustawień).
-		// Ekonomiczny: wymuszamy nadawcę systemowy (patrz self::ECONOMIC_SENDER_NAME).
+		// Dokumentacja SMSAPI (sms.do): `from` musi być zweryfikowaną nazwą nadawcy lub „2way”.
+		// Pustego / braku `from` = domyślny rodzaj wiadomości i domyślne pole nadawcy z konta.
+		// Wysyłkę ekonomiczną ustawia się w panelu jako domyślny nadawca — wtedy żądanie bez `from`
+		// daje ten tryb; wartość „SMSAPI” nie jest automatycznie akceptowana jako nadawca.
 		if ( $is_standard && $sender_name !== '' ) {
 			$body['from'] = $sender_name;
-		} elseif ( ! $is_standard ) {
-			$body['from'] = self::ECONOMIC_SENDER_NAME;
 		}
 
 		$response = wp_remote_post(

@@ -31,7 +31,7 @@ class Form2SMS_Settings {
 			'form2sms-admin-settings',
 			FORM2SMS_URL . 'assets/css/admin-settings.css',
 			[],
-			defined( 'FORM2SMS_VERSION' ) ? FORM2SMS_VERSION : '1.0.0'
+			defined( 'FORM2SMS_VERSION' ) ? FORM2SMS_VERSION : '1.0.1'
 		);
 	}
 
@@ -149,7 +149,7 @@ class Form2SMS_Settings {
 			<?php
 			$github_url = 'https://github.com/t7jk/form2sms';
 			$x_url      = 'https://x.com/tomas3man';
-			$version    = defined( 'FORM2SMS_VERSION' ) ? FORM2SMS_VERSION : '1.0';
+			$version    = defined( 'FORM2SMS_VERSION' ) ? FORM2SMS_VERSION : '1.0.1';
 			?>
 			<footer class="form2sms-admin__footer">
 				<p class="form2sms-admin__footer-meta">
@@ -354,7 +354,7 @@ class Form2SMS_Settings {
 			'form2sms_api',
 			[
 				'key'         => 'sender_name',
-				'description' => __( 'Opcjonalne. Musi być zweryfikowana w panelu SMSAPI (Pola Nadawcy). Używane tylko przy włączonym trybie Standard; przy Ekonomicznym wysyłamy `from=SMSAPI` (nadawca systemowy, niższa cena niż własne pole).', 'form2sms' ),
+				'description' => __( 'Opcjonalne. Musi być zweryfikowana w panelu SMSAPI (Pola Nadawcy). Używane tylko przy włączonym trybie Standard (parametr API `from`). W trybie Ekonomicznym pole `from` nie jest wysyłane — obowiązuje domyślny nadawca z konta (ustaw w panelu SMSAPI wysyłkę ekonomiczną jako domyślny).', 'form2sms' ),
 				'maxlength'   => 11,
 			]
 		);
@@ -800,7 +800,7 @@ class Form2SMS_Settings {
 			<?php esc_html_e( 'Standard (ON) / Ekonomiczny (OFF)', 'form2sms' ); ?>
 		</label>
 		<p class="description">
-			<?php esc_html_e( 'Standard: parametr `from` = nazwa z pola poniżej (własne pole nadawcy). Ekonomiczny: `from=SMSAPI` — nadawca systemowy według dokumentacji SMSAPI, bez użycia domyślnego pola z konta (które często daje wyższą cenę jak przy własnej nazwie).', 'form2sms' ); ?>
+			<?php esc_html_e( 'Standard: do API dodawany jest parametr `from` = zweryfikowana nazwa z pola poniżej (wiadomość Pro). Ekonomiczny: bez parametru `from` — wtedy SMSAPI stosuje domyślny rodzaj wysyłki i domyślne pole nadawcy z Twojego konta; aby to była wysyłka ekonomiczna, ustaw ją jako domyślną w panelu SMSAPI (nie podawaj tu fikcyjnego nadawcy — tylko nazwy aktywowane w Polach nadawcy).', 'form2sms' ); ?>
 		</p>
 		<?php
 	}
