@@ -109,6 +109,47 @@ class Form2SMS_WPForms_HandlerTest extends AppTestCase {
 		);
 	}
 
+	/**
+	 * WPForms Lite / brak zapisu wpisów: entry_id = 0, ale $fields jest wypełnione w hooku.
+	 */
+	public function testHandleSubmissionUsesHookFieldsWhenEntryIdIsZero(): void {
+		$formId = 55;
+
+		$hookFields = [
+			1 => [
+				'label' => 'Your Name',
+				'value' => 'Jan Lite',
+			],
+			2 => [
+				'label' => 'GSM',
+				'value' => '500111222',
+			],
+		];
+
+		$this->setPluginSettings( [
+			'form_source'     => 'wpforms',
+			'wpforms_form_id' => $formId,
+		] );
+
+		$sender = $this->createMock( \Form2SMS_SMS_Sender::class );
+		$sender->expects( $this->once() )
+			->method( 'send' )
+			->with( [
+				'your-name' => 'Jan Lite',
+				'gsm'       => '500111222',
+			] )
+			->willReturn( true );
+
+		$handler = new \Form2SMS_WPForms_Handler( $sender );
+
+		$handler->handle_submission(
+			$hookFields,
+			[],
+			[ 'id' => $formId ],
+			0
+		);
+	}
+
 	public function testHandleSubmissionDoesNothingWhenFormIdDoesNotMatch(): void {
 		$entryFields = [
 			0 => [

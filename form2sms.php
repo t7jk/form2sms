@@ -47,6 +47,24 @@ function form2sms_bootstrap(): void {
 add_action( 'plugins_loaded', 'form2sms_bootstrap' );
 
 /**
+ * Link „Ustawienia” na liście wtyczek (obok Wyłącz).
+ *
+ * @param string[] $links Istniejące linki akcji.
+ * @return string[]
+ */
+function form2sms_plugin_action_links( array $links ): array {
+	$url = admin_url( 'tools.php?page=form2sms' );
+	$settings_link = sprintf(
+		'<a href="%s">%s</a>',
+		esc_url( $url ),
+		esc_html__( 'Ustawienia', 'form2sms' )
+	);
+	array_unshift( $links, $settings_link );
+	return $links;
+}
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'form2sms_plugin_action_links' );
+
+/**
  * Hak aktywacji wtyczki — zapisuje domyślne ustawienia, jeśli nie istnieją.
  */
 function form2sms_activate(): void {

@@ -1,0 +1,222 @@
+/**
+ * Form2SMS — strona ustawień (Narzędzia). Zakres: .form2sms-admin.
+ */
+.form2sms-admin {
+	--form2sms-space-1: 4px;
+	--form2sms-space-2: 8px;
+	--form2sms-space-3: 12px;
+	--form2sms-space-4: 16px;
+	--form2sms-space-5: 24px;
+	--form2sms-radius: 2px;
+	--form2sms-border: 1px solid #c3c4c7;
+	--form2sms-muted: #646970;
+	max-width: 1280px;
+}
+
+.form2sms-admin__intro {
+	margin: var(--form2sms-space-3) 0 var(--form2sms-space-5);
+	max-width: 72ch;
+	font-size: 14px;
+	line-height: 1.55;
+}
+
+.form2sms-admin__layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+	gap: var(--form2sms-space-5);
+	align-items: start;
+	margin-top: var(--form2sms-space-4);
+}
+
+@media screen and (max-width: 960px) {
+	.form2sms-admin__layout {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Każda sekcja Settings API = nagłówek h2 + osobna tabela — wizualnie jeden panel. */
+.form2sms-admin__primary form > h2 {
+	margin: var(--form2sms-space-5) 0 0;
+	padding: var(--form2sms-space-3) var(--form2sms-space-5);
+	font-size: 1.05em;
+	font-weight: 600;
+	line-height: 1.35;
+	background: #f6f7f7;
+	border: var(--form2sms-border);
+	border-bottom: none;
+	border-radius: var(--form2sms-radius) var(--form2sms-radius) 0 0;
+	box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.form2sms-admin__primary form > h2:first-of-type {
+	margin-top: 0;
+}
+
+.form2sms-admin__primary form > .form-table {
+	margin-top: 0;
+	margin-bottom: var(--form2sms-space-5);
+	background: #fff;
+	border: var(--form2sms-border);
+	border-top: none;
+	border-radius: 0 0 var(--form2sms-radius) var(--form2sms-radius);
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.form2sms-admin__primary form > .form-table:last-of-type {
+	margin-bottom: 0;
+}
+
+.form2sms-admin__primary .form-table th {
+	padding: var(--form2sms-space-4) var(--form2sms-space-4) var(--form2sms-space-3) var(--form2sms-space-5);
+	font-weight: 600;
+	vertical-align: top;
+	width: 220px;
+}
+
+.form2sms-admin__primary .form-table td {
+	padding: var(--form2sms-space-4) var(--form2sms-space-5);
+	vertical-align: top;
+}
+
+.form2sms-admin__primary .form-table tr:not(:last-child) th,
+.form2sms-admin__primary .form-table tr:not(:last-child) td {
+	border-bottom: var(--form2sms-border);
+}
+
+.form2sms-admin__primary .submit {
+	margin-top: var(--form2sms-space-5);
+	padding: 0;
+}
+
+.form2sms-admin__secondary {
+	display: flex;
+	flex-direction: column;
+	gap: var(--form2sms-space-4);
+	position: sticky;
+	top: calc(var(--wp-admin--admin-bar--height, 32px) + var(--form2sms-space-4));
+}
+
+@media screen and (max-width: 960px) {
+	.form2sms-admin__secondary {
+		position: static;
+	}
+}
+
+.form2sms-admin__secondary .postbox .inside {
+	padding-bottom: var(--form2sms-space-4);
+}
+
+.form2sms-admin__secondary .form2sms-test-form {
+	margin: 0;
+	padding: 0;
+}
+
+.form2sms-admin__stat {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--form2sms-space-2) var(--form2sms-space-3);
+	margin: 0 0 var(--form2sms-space-2);
+	font-size: 15px;
+	line-height: 1.4;
+}
+
+.form2sms-admin__stat strong {
+	font-size: 13px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: var(--form2sms-muted);
+}
+
+.form2sms-admin__stat-value {
+	font-variant-numeric: tabular-nums;
+	font-size: 1.35em;
+	font-weight: 600;
+}
+
+.form2sms-fieldset--radios label {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--form2sms-space-2);
+	margin: 0 0 var(--form2sms-space-2);
+	line-height: 1.45;
+}
+
+.form2sms-fieldset--radios label:last-child {
+	margin-bottom: 0;
+}
+
+.form2sms-fieldset--radios input[type="radio"] {
+	margin: 3px 0 0;
+	flex-shrink: 0;
+}
+
+.form2sms-tag-fieldset {
+	margin: var(--form2sms-space-3) 0 0;
+	padding: var(--form2sms-space-3) var(--form2sms-space-4);
+	border: var(--form2sms-border);
+	border-radius: var(--form2sms-radius);
+	background: #f6f7f7;
+	max-height: 220px;
+	overflow: auto;
+}
+
+.form2sms-tag-fieldset legend {
+	font-weight: 600;
+	padding: 0 var(--form2sms-space-2);
+	margin-bottom: var(--form2sms-space-2);
+}
+
+.form2sms-tag-list {
+	margin: var(--form2sms-space-2) 0 0;
+	padding-left: 1.25em;
+	display: flex;
+	flex-direction: column;
+	gap: var(--form2sms-space-1);
+	font-size: 13px;
+}
+
+.form2sms-tag-list code {
+	font-size: 12px;
+	padding: 1px 5px;
+	border-radius: 2px;
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.form2sms-admin .form2sms-admin__primary select.regular-text,
+.form2sms-admin .form2sms-admin__primary select {
+	max-width: 100%;
+}
+
+.form2sms-admin__footer {
+	margin-top: var(--form2sms-space-5);
+	padding-top: var(--form2sms-space-4);
+	border-top: var(--form2sms-border);
+	max-width: 72ch;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--form2sms-muted);
+}
+
+.form2sms-admin__footer-meta {
+	margin: 0 0 var(--form2sms-space-2);
+}
+
+.form2sms-admin__footer-links {
+	margin: 0;
+}
+
+.form2sms-admin__footer-links a {
+	text-decoration: none;
+}
+
+.form2sms-admin__footer-links a:hover,
+.form2sms-admin__footer-links a:focus {
+	text-decoration: underline;
+}
+
+.form2sms-admin__footer .form2sms-admin__footer-sep {
+	margin: 0 0.35em;
+	user-select: none;
+}

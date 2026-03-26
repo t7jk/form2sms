@@ -37,6 +37,10 @@ msgstr ""
 msgid "Form2SMS"
 msgstr ""
 
+#: form2sms.php
+msgid "Ustawienia"
+msgstr ""
+
 #: includes/class-settings.php
 msgid "Brak uprawnień."
 msgstr ""

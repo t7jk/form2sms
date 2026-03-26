@@ -52,26 +52,25 @@ class Form2SMS_WPForms_Handler {
 		}
 
 		$entry_id = absint( (int) $entry_id );
-		if ( 0 === $entry_id ) {
-			return;
+
+		// WPForms przekazuje zsanityzowane pola w $fields — zawsze przy udanym submitcie.
+		// entry_id bywa 0 w WPForms Lite lub przy wyłączonym zapisie wpisów; wtedy get() nie zadziała.
+		$posted = [];
+		if ( is_array( $fields ) && $fields !== [] ) {
+			$posted = $this->map_entry_fields_to_template_tags( $fields );
 		}
 
-		if ( ! function_exists( 'wpforms' ) ) {
-			return;
+		if ( $posted === [] && $entry_id > 0 && function_exists( 'wpforms' ) ) {
+			$entry_obj = wpforms()->entry->get( $entry_id );
+			if ( ! empty( $entry_obj ) && ! empty( $entry_obj->fields ) ) {
+				$entry_fields = json_decode( (string) $entry_obj->fields, true );
+				if ( is_array( $entry_fields ) ) {
+					$posted = $this->map_entry_fields_to_template_tags( $entry_fields );
+				}
+			}
 		}
 
-		$entry_obj = wpforms()->entry->get( $entry_id );
-		if ( empty( $entry_obj ) || empty( $entry_obj->fields ) ) {
-			return;
-		}
-
-		$entry_fields = json_decode( (string) $entry_obj->fields, true );
-		if ( ! is_array( $entry_fields ) ) {
-			return;
-		}
-
-		$posted = $this->map_entry_fields_to_template_tags( $entry_fields );
-		if ( empty( $posted ) ) {
+		if ( $posted === [] ) {
 			return;
 		}
 

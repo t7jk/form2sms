@@ -9,11 +9,30 @@ defined( 'ABSPATH' ) || exit;
 class Form2SMS_Settings {
 
 	public function __construct() {
-		add_action( 'admin_menu',    [ $this, 'register_menu' ] );
-		add_action( 'admin_init',    [ $this, 'register_settings' ] );
-		add_action( 'admin_notices', [ $this, 'maybe_show_cf7_notice' ] );
-		add_action( 'admin_notices', [ $this, 'maybe_show_wpforms_notice' ] );
+		add_action( 'admin_menu',           [ $this, 'register_menu' ] );
+		add_action( 'admin_init',           [ $this, 'register_settings' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
+		add_action( 'admin_notices',        [ $this, 'maybe_show_cf7_notice' ] );
+		add_action( 'admin_notices',        [ $this, 'maybe_show_wpforms_notice' ] );
 		add_action( 'admin_post_form2sms_send_test', [ $this, 'handle_send_test' ] );
+	}
+
+	/**
+	 * Ładuje style strony ustawień (tylko ekran wtyczki).
+	 *
+	 * @param string $hook_suffix Hook bieżącej strony admina.
+	 */
+	public function enqueue_admin_assets( string $hook_suffix ): void {
+		if ( 'tools_page_form2sms' !== $hook_suffix ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'form2sms-admin-settings',
+			FORM2SMS_URL . 'assets/css/admin-settings.css',
+			[],
+			defined( 'FORM2SMS_VERSION' ) ? FORM2SMS_VERSION : '1.0.0'
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -46,15 +65,18 @@ class Form2SMS_Settings {
 			? sanitize_text_field( (string) $_GET['form2sms_test_result'] )
 			: '';
 		?>
-		<div class="wrap">
+		<div class="wrap form2sms-admin">
 			<h1><?php esc_html_e( 'Form2SMS — Ustawienia', 'form2sms' ); ?></h1>
+			<p class="form2sms-admin__intro description">
+				<?php esc_html_e( 'Powiadomienia SMS po wysłaniu formularza przez SMSAPI.pl. Uzupełnij dane dostępowe, wybierz formularz i szablon, potem zapisz ustawienia. Test wysyłki korzysta z zapisanej konfiguracji.', 'form2sms' ); ?>
+			</p>
 
 			<?php if ( 'ok' === $test_result ) : ?>
-				<div class="notice notice-success">
+				<div class="notice notice-success is-dismissible">
 					<p><?php esc_html_e( 'Wysłano testowy SMS.', 'form2sms' ); ?></p>
 				</div>
 			<?php elseif ( 'error' === $test_result ) : ?>
-				<div class="notice notice-error">
+				<div class="notice notice-error is-dismissible">
 					<p><?php esc_html_e( 'Nie udało się wysłać testowego SMS.', 'form2sms' ); ?></p>
 				</div>
 			<?php endif; ?>
@@ -65,38 +87,90 @@ class Form2SMS_Settings {
 				</div>
 			<?php endif; ?>
 
-			<form method="post" action="options.php">
-				<?php
-				settings_fields( 'form2sms_group' );
-				do_settings_sections( 'form2sms' );
-				submit_button( __( 'Zapisz ustawienia', 'form2sms' ) );
-				?>
-			</form>
-
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top: 16px;">
-				<?php
-				wp_nonce_field( 'form2sms_send_test', 'form2sms_send_test_nonce' );
-				?>
-				<input type="hidden" name="action" value="form2sms_send_test" />
-				<?php submit_button( __( 'Test', 'form2sms' ), 'secondary', 'form2sms_send_test_submit', false ); ?>
-				<p class="description" style="margin-top: 6px;">
-					<?php esc_html_e( 'W trybie testowym zamieniamy tagi z szablonu na same nazwy (np. [email] → email).', 'form2sms' ); ?>
-				</p>
-			</form>
-
 			<?php
-			// Informacja o dziennym liczniku SMS (tylko do odczytu).
 			$today = gmdate( 'Y-m-d' );
 			$count = ( $settings['sms_count_date'] === $today ) ? (int) $settings['sms_count'] : 0;
 			$limit = (int) $settings['sms_limit'];
 			?>
-			<p>
-				<strong><?php esc_html_e( 'Wysłano dziś:', 'form2sms' ); ?></strong>
-				<?php
-				// translators: %1$d = liczba wysłanych SMS, %2$d = dzienny limit.
-				echo esc_html( sprintf( __( '%1$d / %2$d', 'form2sms' ), $count, $limit ) );
-				?>
-			</p>
+
+			<div class="form2sms-admin__layout" id="form2sms-admin-layout">
+				<div class="form2sms-admin__primary">
+					<form method="post" action="options.php">
+						<?php
+						settings_fields( 'form2sms_group' );
+						do_settings_sections( 'form2sms' );
+						submit_button( __( 'Zapisz ustawienia', 'form2sms' ) );
+						?>
+					</form>
+				</div>
+
+				<div class="form2sms-admin__secondary">
+					<div class="postbox">
+						<div class="postbox-header">
+							<h2 class="hndle"><?php esc_html_e( 'Wyślij testowy SMS', 'form2sms' ); ?></h2>
+						</div>
+						<div class="inside">
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="form2sms-test-form">
+								<?php wp_nonce_field( 'form2sms_send_test', 'form2sms_send_test_nonce' ); ?>
+								<input type="hidden" name="action" value="form2sms_send_test" />
+								<?php submit_button( __( 'Wyślij test', 'form2sms' ), 'secondary', 'form2sms_send_test_submit', false ); ?>
+								<p class="description">
+									<?php esc_html_e( 'W trybie testowym zamieniamy tagi z szablonu na same nazwy (np. [email] → email).', 'form2sms' ); ?>
+								</p>
+							</form>
+						</div>
+					</div>
+
+					<div class="postbox">
+						<div class="postbox-header">
+							<h2 class="hndle"><?php esc_html_e( 'Wykorzystanie dziennego limitu', 'form2sms' ); ?></h2>
+						</div>
+						<div class="inside">
+							<p class="form2sms-admin__stat">
+								<strong><?php esc_html_e( 'Wysłano dziś:', 'form2sms' ); ?></strong>
+								<span class="form2sms-admin__stat-value" aria-live="polite">
+									<?php
+									// translators: %1$d = liczba wysłanych SMS, %2$d = dzienny limit.
+									echo esc_html( sprintf( __( '%1$d / %2$d', 'form2sms' ), $count, $limit ) );
+									?>
+								</span>
+							</p>
+							<p class="description">
+								<?php esc_html_e( 'Licznik resetuje się o północy UTC. Limit konfigurujesz w sekcji „Zachowanie”.', 'form2sms' ); ?>
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<?php
+			$github_url = 'https://github.com/t7jk/form2sms';
+			$x_url      = 'https://x.com/tomas3man';
+			$version    = defined( 'FORM2SMS_VERSION' ) ? FORM2SMS_VERSION : '1.0';
+			?>
+			<footer class="form2sms-admin__footer">
+				<p class="form2sms-admin__footer-meta">
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: 1: author name, 2: plugin version */
+							__( 'Autor: %1$s — wersja %2$s', 'form2sms' ),
+							'Tomasz Kalinowski',
+							$version
+						)
+					);
+					?>
+				</p>
+				<p class="form2sms-admin__footer-links">
+					<a href="<?php echo esc_url( $github_url ); ?>" target="_blank" rel="noopener noreferrer">
+						<?php esc_html_e( 'Repozytorium na GitHubie', 'form2sms' ); ?>
+					</a>
+					<span class="form2sms-admin__footer-sep" aria-hidden="true">·</span>
+					<a href="<?php echo esc_url( $x_url ); ?>" target="_blank" rel="noopener noreferrer">
+						<?php esc_html_e( 'Profil na X (@tomas3man)', 'form2sms' ); ?>
+					</a>
+				</p>
+			</footer>
 		</div>
 		<?php
 	}
@@ -140,6 +214,32 @@ class Form2SMS_Settings {
 				'sanitize_callback' => [ $this, 'sanitize_settings' ],
 				'default'           => self::get_defaults(),
 			]
+		);
+
+		// --- Sekcja: Zachowanie (najpierw — włączenie i limit) ---
+		add_settings_section(
+			'form2sms_behaviour',
+			__( 'Zachowanie', 'form2sms' ),
+			'__return_false',
+			'form2sms'
+		);
+
+		add_settings_field(
+			'enabled',
+			__( 'Włącz wysyłanie SMS', 'form2sms' ),
+			[ $this, 'field_checkbox' ],
+			'form2sms',
+			'form2sms_behaviour',
+			[ 'key' => 'enabled' ]
+		);
+
+		add_settings_field(
+			'sms_limit',
+			__( 'Maksymalna liczba SMS na dobę', 'form2sms' ),
+			[ $this, 'field_number' ],
+			'form2sms',
+			'form2sms_behaviour',
+			[ 'key' => 'sms_limit', 'min' => 1, 'max' => 9999 ]
 		);
 
 		// --- Sekcja: Źródło danych z formularza ---
@@ -273,32 +373,6 @@ class Form2SMS_Settings {
 			'form2sms_api',
 			[ 'key' => 'admin_phone', 'description' => __( 'Format: 48500600700 (bez + i spacji)', 'form2sms' ) ]
 		);
-
-		// --- Sekcja: Zachowanie ---
-		add_settings_section(
-			'form2sms_behaviour',
-			__( 'Zachowanie', 'form2sms' ),
-			'__return_false',
-			'form2sms'
-		);
-
-		add_settings_field(
-			'enabled',
-			__( 'Włącz wysyłanie SMS', 'form2sms' ),
-			[ $this, 'field_checkbox' ],
-			'form2sms',
-			'form2sms_behaviour',
-			[ 'key' => 'enabled' ]
-		);
-
-		add_settings_field(
-			'sms_limit',
-			__( 'Maksymalna liczba SMS na dobę', 'form2sms' ),
-			[ $this, 'field_number' ],
-			'form2sms',
-			'form2sms_behaviour',
-			[ 'key' => 'sms_limit', 'min' => 1, 'max' => 9999 ]
-		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -315,7 +389,7 @@ class Form2SMS_Settings {
 		$has_cf7  = $this->is_cf7_active();
 		$has_wp   = $this->is_wpforms_active();
 		?>
-		<fieldset id="form2sms-form-source">
+		<fieldset id="form2sms-form-source" class="form2sms-fieldset--radios">
 			<label>
 				<input type="radio"
 					name="form2sms_settings[<?php echo esc_attr( $key ); ?>]"
@@ -415,8 +489,8 @@ class Form2SMS_Settings {
 		$tags_by_form_id_json = wp_json_encode( $tags_by_form_id );
 		?>
 		<div style="display:<?php echo esc_attr( $visible ); ?>;">
-			<fieldset id="form2sms-wpforms-tags-fieldset" class="form2sms-wpforms-tags-fieldset" style="display:none; margin-top: 8px;">
-				<ul id="form2sms-wpforms-tags-list">
+			<fieldset id="form2sms-wpforms-tags-fieldset" class="form2sms-tag-fieldset" style="display:none;">
+				<ul id="form2sms-wpforms-tags-list" class="form2sms-tag-list">
 					<li>
 						<?php esc_html_e( 'Wybierz formularz powyżej.', 'form2sms' ); ?>
 					</li>
@@ -527,9 +601,9 @@ class Form2SMS_Settings {
 				<p class="description"><?php esc_html_e( 'Brak formularzy CF7. Utwórz formularz w Contact Form 7.', 'form2sms' ); ?></p>
 			<?php endif; ?>
 
-			<fieldset id="form2sms-cf7-tags-fieldset" class="form2sms-cf7-tags-fieldset" style="display:none;">
+			<fieldset id="form2sms-cf7-tags-fieldset" class="form2sms-tag-fieldset" style="display:none;">
 				<legend><?php esc_html_e( 'Tagi CF7 w wybranym formularzu', 'form2sms' ); ?></legend>
-				<ul id="form2sms-cf7-tags-list">
+				<ul id="form2sms-cf7-tags-list" class="form2sms-tag-list">
 					<li>
 						<?php esc_html_e( 'Wybierz formularz powyżej.', 'form2sms' ); ?>
 					</li>
