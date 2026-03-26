@@ -14,6 +14,13 @@ class Form2SMS_SMS_Sender {
 	/** Maksymalna długość SMS w znakach. */
 	private const MAX_LENGTH = 159;
 
+	/**
+	 * Nadawca przy trybie ekonomicznym: dokumentacja SMSAPI — gdy nie ma domyślnego pola nadawcy,
+	 * wiadomość idzie z nazwą „SMSAPI”; przykład Mail2SMS używa from=SMSAPI. Samo pominięcie `from`
+	 * powodowałoby użycie domyślnego pola z konta (często własna nazwa = wyższa cena).
+	 */
+	private const ECONOMIC_SENDER_NAME = 'SMSAPI';
+
 	// -------------------------------------------------------------------------
 	// Główna metoda wysyłki
 	// -------------------------------------------------------------------------
@@ -244,10 +251,12 @@ class Form2SMS_SMS_Sender {
 			'format'  => 'json',
 		];
 
-		// Standard: wysyłamy jako wiadomość Pro z polem nadawcy (from).
-		// Ekonomiczny: nie wysyłamy parametru `from` (wiadomość domyślna).
+		// Standard: własne pole nadawcy (zweryfikowana nazwa z ustawień).
+		// Ekonomiczny: wymuszamy nadawcę systemowy (patrz self::ECONOMIC_SENDER_NAME).
 		if ( $is_standard && $sender_name !== '' ) {
 			$body['from'] = $sender_name;
+		} elseif ( ! $is_standard ) {
+			$body['from'] = self::ECONOMIC_SENDER_NAME;
 		}
 
 		$response = wp_remote_post(

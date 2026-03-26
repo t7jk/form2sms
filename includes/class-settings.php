@@ -115,6 +115,9 @@ class Form2SMS_Settings {
 								<input type="hidden" name="action" value="form2sms_send_test" />
 								<?php submit_button( __( 'Wyślij test', 'form2sms' ), 'secondary', 'form2sms_send_test_submit', false ); ?>
 								<p class="description">
+									<?php esc_html_e( 'Test używa ustawień już zapisanych w bazie (najpierw „Zapisz ustawienia” — w tym tryb Standard / Ekonomiczny).', 'form2sms' ); ?>
+								</p>
+								<p class="description">
 									<?php esc_html_e( 'W trybie testowym zamieniamy tagi z szablonu na same nazwy (np. [email] → email).', 'form2sms' ); ?>
 								</p>
 							</form>
@@ -351,7 +354,7 @@ class Form2SMS_Settings {
 			'form2sms_api',
 			[
 				'key'         => 'sender_name',
-				'description' => __( 'Opcjonalne. Musi być zweryfikowana w panelu SMSAPI (Pola Nadawcy). W trybie ekonomicznym pole `from` nie jest wysyłane.', 'form2sms' ),
+				'description' => __( 'Opcjonalne. Musi być zweryfikowana w panelu SMSAPI (Pola Nadawcy). Używane tylko przy włączonym trybie Standard; przy Ekonomicznym wysyłamy `from=SMSAPI` (nadawca systemowy, niższa cena niż własne pole).', 'form2sms' ),
 				'maxlength'   => 11,
 			]
 		);
@@ -425,22 +428,89 @@ class Form2SMS_Settings {
 		<script>
 			( function () {
 				const radioSelector = 'input[name="form2sms_settings[form_source]"]';
-				const cf7El = document.getElementById( 'form2sms-source-cf7' );
-				const wpEl = document.getElementById( 'form2sms-source-wpforms' );
-				if ( ! cf7El || ! wpEl ) return;
+				/** Kolejność sekcji z do_settings_sections: 0 Zachowanie, 1 Źródło, 2 CF7, 3 WPForms, 4 SMSAPI. */
+				const sectionIndexCf7 = 2;
+				const sectionIndexWpforms = 3;
+
+				function getFormSectionBlocks( form ) {
+					const blocks = [];
+					const children = Array.from( form.children );
+					let i = 0;
+					while ( i < children.length ) {
+						const el = children[ i ];
+						if ( el.tagName === 'H2' ) {
+							const h2 = el;
+							i++;
+							const nodes = [];
+							while ( i < children.length && children[ i ].tagName !== 'H2' ) {
+								nodes.push( children[ i ] );
+								i++;
+							}
+							blocks.push( { h2: h2, nodes: nodes } );
+						} else {
+							i++;
+						}
+					}
+					return blocks;
+				}
 
 				function sync() {
 					const checked = document.querySelector( radioSelector + ':checked' );
 					const val = checked ? checked.value : '';
-					cf7El.style.display = ( val === 'cf7' ) ? '' : 'none';
-					wpEl.style.display = ( val === 'wpforms' ) ? '' : 'none';
+
+					const form = document.querySelector( '.form2sms-admin__primary > form' );
+					if ( form ) {
+						const blocks = getFormSectionBlocks( form );
+						const blkCf7 = blocks[ sectionIndexCf7 ];
+						const blkWp = blocks[ sectionIndexWpforms ];
+						if ( blkCf7 ) {
+							const show = val === 'cf7';
+							blkCf7.h2.style.display = show ? '' : 'none';
+							blkCf7.nodes.forEach( function ( n ) {
+								n.style.display = show ? '' : 'none';
+							} );
+						}
+						if ( blkWp ) {
+							const show = val === 'wpforms';
+							blkWp.h2.style.display = show ? '' : 'none';
+							blkWp.nodes.forEach( function ( n ) {
+								n.style.display = show ? '' : 'none';
+							} );
+						}
+					}
+
+					const cf7El = document.getElementById( 'form2sms-source-cf7' );
+					const wpEl = document.getElementById( 'form2sms-source-wpforms' );
+					const tplCf7 = document.getElementById( 'form2sms-sms-template-cf7' );
+					const tplWp = document.getElementById( 'form2sms-sms-template-wpforms' );
+					const wpTagsOuter = document.getElementById( 'form2sms-wpforms-tags-outer' );
+
+					if ( cf7El ) {
+						cf7El.style.display = val === 'cf7' ? '' : 'none';
+					}
+					if ( wpEl ) {
+						wpEl.style.display = val === 'wpforms' ? '' : 'none';
+					}
+					if ( tplCf7 ) {
+						tplCf7.style.display = val === 'cf7' ? '' : 'none';
+					}
+					if ( tplWp ) {
+						tplWp.style.display = val === 'wpforms' ? '' : 'none';
+					}
+					if ( wpTagsOuter ) {
+						wpTagsOuter.style.display = val === 'wpforms' ? '' : 'none';
+					}
 				}
 
 				document.querySelectorAll( radioSelector ).forEach( function ( r ) {
 					r.addEventListener( 'change', sync );
 				} );
 
-				sync();
+				if ( document.readyState === 'loading' ) {
+					document.addEventListener( 'DOMContentLoaded', sync );
+				} else {
+					sync();
+				}
 			} )();
 		</script>
 		<?php
@@ -488,7 +558,7 @@ class Form2SMS_Settings {
 		}
 		$tags_by_form_id_json = wp_json_encode( $tags_by_form_id );
 		?>
-		<div style="display:<?php echo esc_attr( $visible ); ?>;">
+		<div id="form2sms-wpforms-tags-outer" style="display:<?php echo esc_attr( $visible ); ?>;">
 			<fieldset id="form2sms-wpforms-tags-fieldset" class="form2sms-tag-fieldset" style="display:none;">
 				<ul id="form2sms-wpforms-tags-list" class="form2sms-tag-list">
 					<li>
@@ -555,7 +625,7 @@ class Form2SMS_Settings {
 		$source   = (string) ( $settings['form_source'] ?? self::get_defaults()['form_source'] );
 		$visible  = ( 'cf7' === $source ) ? '' : 'none';
 		?>
-		<div style="display:<?php echo esc_attr( $visible ); ?>;">
+		<div id="form2sms-sms-template-cf7" style="display:<?php echo esc_attr( $visible ); ?>;">
 			<?php $this->field_text( $args ); ?>
 		</div>
 		<?php
@@ -569,7 +639,7 @@ class Form2SMS_Settings {
 		$source   = (string) ( $settings['form_source'] ?? self::get_defaults()['form_source'] );
 		$visible  = ( 'wpforms' === $source ) ? '' : 'none';
 		?>
-		<div style="display:<?php echo esc_attr( $visible ); ?>;">
+		<div id="form2sms-sms-template-wpforms" style="display:<?php echo esc_attr( $visible ); ?>;">
 			<?php $this->field_text( $args ); ?>
 		</div>
 		<?php
@@ -730,7 +800,7 @@ class Form2SMS_Settings {
 			<?php esc_html_e( 'Standard (ON) / Ekonomiczny (OFF)', 'form2sms' ); ?>
 		</label>
 		<p class="description">
-			<?php esc_html_e( 'Standard: wysyłamy parametr `from` (wiadomość Pro z polem nadawcy). Ekonomiczny: nie wysyłamy `from` (wiadomość domyślna).', 'form2sms' ); ?>
+			<?php esc_html_e( 'Standard: parametr `from` = nazwa z pola poniżej (własne pole nadawcy). Ekonomiczny: `from=SMSAPI` — nadawca systemowy według dokumentacji SMSAPI, bez użycia domyślnego pola z konta (które często daje wyższą cenę jak przy własnej nazwie).', 'form2sms' ); ?>
 		</p>
 		<?php
 	}
